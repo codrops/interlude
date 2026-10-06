@@ -32,6 +32,8 @@ Interlude is a set of files you copy into your site, not a package. Built with A
 - `src/interlude.config.ts`: the settings.
 - The transitions you want, into `src/transitions/`: at least your default one (`peel`, unless you change `defaultTransition`, which needs `src/lib/interlude/old-page.ts`). Each transition says at the top of its file what else it needs: the WebGL ones `src/lib/interlude/webgl.ts` and three.js, and `stack`, `slide-over`, `peel`, `slices`, `frame`, `carousel`, `cube`, `corner`, `tear` and `channel` `src/lib/interlude/old-page.ts`.
 
+Keep Interlude's licence notice (`LICENSE`, MIT) with the copied files.
+
 Some of the transitions carry the demo's content or colours. Adapt them at the top of their files:
 
 - `particles` spells `WORD` ("Interlude"). Keep it short: a long word can't be read as dots on a phone.
@@ -88,7 +90,7 @@ vite: {
 },
 ```
 
-The first line bundles three.js up front in development, so the first WebGL transition doesn't make Vite reload the page. The second raises Vite's warning about large files above three.js's size: only WebGL transitions load it.
+If your config already has a `vite` block (for a Tailwind plugin, say), add these two lines to it rather than a second block, which would replace the first. The first line bundles three.js up front in development, so the first WebGL transition doesn't make Vite reload the page. The second raises Vite's warning about large files above three.js's size: only WebGL transitions load it.
 
 Every link between your pages now plays the default transition. Pick others per link with `data-transition` (see [Using transitions](#using-transitions)).
 
@@ -99,6 +101,7 @@ Every link between your pages now plays the default transition. Pick others per 
 With `<ClientRouter />`, a navigation doesn't load a new document: the router swaps the new page in, and skips every script it has already run, recognised by its `src` or its text. That includes bundled scripts, the ones Astro inlines, and `is:inline` ones. So code that sets up a page when it loads now runs on the first page only: on the pages after it, buttons, menus and carousels stay dead, without an error.
 
 - **Set up pages in `onPage()`** ([Page scripts](#page-scripts)). `onPage(() => true, { init(main) { … } })` runs `init` on every page. Return a cleanup from it for whatever outlives the page: listeners on `window` or `document`, `matchMedia` listeners, library instances.
+- **To match a page by its id** (`onPage('home', …)`), give your `<html>` a `data-page` attribute in the layout (the demo's comes from its `page` prop). `onPage(() => true, …)`, for every page, needs nothing.
 - **`onPage()` works from a component's own `<script>`** too, not only from `src/scripts/pages/`: the script runs before its page is set up, also when that page is reached by a navigation.
 - **Prefer it to `astro:page-load`:** on the first load, the router fires `astro:page-load` only once every image has loaded, so on a page with many images its buttons wait for them. `onPage()` runs as soon as the HTML is ready.
 - **Look for the page's elements inside `main`,** the page's `<main>` that `init` gets, not in the whole document: during a transition, a still copy of the old page can be in the layer, with the same classes and data attributes. Outside `<main>`, use ids, which the copy doesn't keep.
@@ -114,7 +117,7 @@ With `<ClientRouter />`, a navigation doesn't load a new document: the router sw
 ### Optional, from the demo
 
 - **The content's entrance:** copy `src/scripts/pages/entrance.ts` (files in `src/scripts/pages/` are loaded by themselves) and mark elements with `data-entrance` ([The entrance](#the-entrance)).
-- **Smooth scrolling:** `npm install lenis`, copy `src/scripts/smooth-scroll.ts`, import it in a `<script>` at the end of your layout, and copy the `html.lenis` rule from `src/styles/global.css`. If your site already uses Lenis, do with yours what that file does: stop it on `interlude:leave`, bring it to the scroll position Astro sets after the swap (`astro:after-swap`), and start it again on `interlude:idle`.
+- **Smooth scrolling:** `npm install lenis`, copy `src/scripts/smooth-scroll.ts`, import it in a `<script>` at the end of your layout, and copy the `html.lenis` rule from `src/styles/global.css`. If your site already uses Lenis, do with yours what that file does: stop it on `interlude:leave`, bring it to the scroll position Astro sets after the swap (`astro:after-swap`), and start it again on `interlude:idle`. `interlude:leave` fires before the layer changes state, so to know whether a transition is running, set a flag on `interlude:leave` and clear it on `interlude:idle`, rather than reading the layer. The demo's `html.lenis` rule keeps the scrollbar while Lenis is stopped for a transition; if your site also stops Lenis for its own reasons (a dialog's scroll lock), don't copy the rule as it is, or it undoes that lock's `overflow` too: limit it to transitions, with a class your script sets on `interlude:leave` and removes on `interlude:idle`.
 - **The loader:** copy `src/components/Loader.astro` and add `<Loader />` to your layout.
 
 ## Start a new site from this one
@@ -441,7 +444,7 @@ document.addEventListener('interlude:leave', () => menu.close());
 document.addEventListener('interlude:idle', ({ detail }) => track(detail.to.pathname));
 ```
 
-They fire in that order for every navigation, including ones without a transition. The first load has `enter` and `idle` only.
+They fire in that order for every navigation, including ones without a transition. The first load has `enter` and `idle` only. `interlude:leave` fires before the layer changes state: to know whether a transition is running, set a flag on `interlude:leave` and clear it on `interlude:idle`.
 
 ## Configuration
 
