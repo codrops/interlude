@@ -1,5 +1,9 @@
 # Interlude
 
+<!-- Placeholders: replace # with the live demo's address and the article's once they exist. -->
+
+**[Demo](#) · [Article](#)**
+
 A starter for custom page transitions in Astro, built on Astro's own client router: a small engine that plugs into `<ClientRouter />` and runs your own cover-and-reveal transitions, each in its own file in `src/transitions/`. It's a starter, not a library: there's no package to install. Copy the engine into your Astro site, keep the transitions you want, and write your own.
 
 The demo is a small site about Interlude itself. Its home page is the list of transitions, set as one sentence: each name plays its transition on the way to its own page. Every page is white; a page can have another ground (grey and night are ready), so a transition can go from one colour to another.
@@ -97,13 +101,14 @@ Optional, from the demo, to keep or remove: the content's entrance (`src/scripts
 Astro's client router (`<ClientRouter />`) fetches the next page, swaps the DOM and updates the history. It fires events along the way, and one of them, `astro:before-preparation`, has a replaceable `loader`: the router waits for it before swapping. Interlude wraps that loader, so the page gets covered before the swap and revealed after it.
 
 ```
-click ──▶ astro:before-preparation ──▶ cover the page (transition.leave) ─┐ in
-                                       fetch the next page ──────────────┘ parallel
-          astro:before-swap ──▶ clean up the old page
-          (Astro swaps the DOM under the cover, sets the scroll position)
-          astro:after-swap  ──▶ set the new page's starting state (transition.prepare)
-          astro:page-load   ──▶ set up the new page ──▶ wait for fonts and images
-                                ──▶ reveal it (transition.enter)
+click
+  astro:before-preparation  ->  cover the page (transition.leave)    } at the
+                                fetch the next page                  } same time
+  astro:before-swap         ->  clean up the old page
+  (Astro swaps the page under the cover and sets the scroll position)
+  astro:after-swap          ->  set the new page's starting state (transition.prepare)
+  astro:page-load           ->  set up the new page, wait for fonts and images,
+                                then reveal it (transition.enter)
 ```
 
 The cover and the fetch run at the same time, so a navigation costs whichever is longer, not both. On a slow connection the page stays covered until the next one arrives.

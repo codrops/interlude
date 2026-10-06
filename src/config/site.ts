@@ -14,9 +14,9 @@ export const site = {
   image: { src: shareImage, alt: 'Interlude: Astro starter for page transitions.' },
   /** The home page is the transitions index: the header links there with the site's name. */
   nav: [{ label: 'Get started', href: '/start/' }],
-  /** Where the project lives. Placeholders until it's published. */
+  /** Where the project lives. The article link is a placeholder until the article is out. */
   links: [
-    { label: 'Code', href: 'https://github.com/codrops' },
+    { label: 'Code', href: 'https://github.com/codrops/interlude' },
     { label: 'Article', href: 'https://tympanus.net/codrops/' },
   ],
 };

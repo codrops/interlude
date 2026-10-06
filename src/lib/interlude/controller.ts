@@ -1,13 +1,14 @@
 /**
  * The controller: plugs Interlude into Astro's client router (`<ClientRouter />`).
  *
- *   click ──▶ astro:before-preparation ──▶ cover the page (transition.leave) ─┐ in
- *                                          fetch the next page ──────────────┘ parallel
- *             astro:before-swap ──▶ clean up the old page
- *             (Astro swaps the DOM under the cover, sets the scroll position)
- *             astro:after-swap  ──▶ set the new page's starting state (transition.prepare)
- *             astro:page-load   ──▶ set up the new page ──▶ wait for fonts and images
- *                                   ──▶ reveal it (transition.enter)
+ *   click
+ *     astro:before-preparation  ->  cover the page (transition.leave)    } at the
+ *                                   fetch the next page                  } same time
+ *     astro:before-swap         ->  clean up the old page
+ *     (Astro swaps the page under the cover and sets the scroll position)
+ *     astro:after-swap          ->  set the new page's starting state (transition.prepare)
+ *     astro:page-load           ->  set up the new page, wait for fonts and images,
+ *                                   then reveal it (transition.enter)
  *
  * The router's replaceable `loader` is the hook: it's awaited before the swap,
  * so wrapping it lets the cover finish first. The fetch runs alongside it, so a

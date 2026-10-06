@@ -65,12 +65,12 @@ Say the visitor is on the home page and clicks `<a href="/about/" data-transitio
 
 ```
 Astro's router                        Interlude
-──────────────                        ─────────
+--------------                        ---------
 the link is hovered or focused:
   prefetch /about/                    load circle.ts
 
 the link is clicked:
-  astro:before-preparation ─────────▶ pick the transition
+  astro:before-preparation ---------> pick the transition
                                       fire interlude:leave
                                       lock the page
                                       wrap the loader
@@ -80,16 +80,16 @@ the link is clicked:
     fetch and parse /about/     +     cover: circle.leave()
                                       fire interlude:covered
 
-  astro:before-swap ────────────────▶ skip the view transition
+  astro:before-swap ----------------> skip the view transition
                                       clean up the old page
   swap in the new page
   (the layer is kept)
   update history and scroll
-  astro:after-swap ─────────────────▶ lock the new page
+  astro:after-swap -----------------> lock the new page
                                       circle.prepare(), if it has one
 
   run the new page's scripts
-  astro:page-load ──────────────────▶ set up the new page
+  astro:page-load ------------------> set up the new page
   announce the new title              wait for fonts and images
                                       fire interlude:enter
                                       reveal: circle.enter()

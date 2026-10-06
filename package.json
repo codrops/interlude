@@ -5,6 +5,10 @@
   "private": true,
   "description": "A starter for custom page transitions in Astro, built on Astro's ClientRouter and GSAP, with WebGL transitions in three.js.",
   "author": "Codrops",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/codrops/interlude.git"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=22.12.0"
