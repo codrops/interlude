@@ -51,7 +51,7 @@ Then the scripts run. They're JavaScript modules, which run once the HTML is par
 
 On `DOMContentLoaded`, the controller sets up the first page (`#boot`):
 
-- The page scripts' `init` hooks run.
+- The page scripts' `init` hooks run, with the page's `<main>`.
 - **Without `revealOnLoad`** (the default), the page is already on screen, so it's shown as it is (`#appear`): `interlude:enter` fires, then the page scripts' `enter` hooks (with `context.initial` set to `true`, `context.transition` to `'none'`, and `context.entrance` to `false`: the content is on screen already, there's nothing to bring in), then `interlude:idle`.
 - **With `revealOnLoad`**, the controller loads the default transition and waits for the fonts and images at the same time. Then it reveals the page the same way as after a navigation (steps 6 and 7 below).
 
@@ -171,7 +171,7 @@ The router runs the new page's scripts, skipping any that already ran (Interlude
 
 On `astro:page-load` (`#onPageLoad`), the controller:
 
-- runs the page scripts' `init` hooks for the new page;
+- runs the page scripts' `init` hooks for the new page, with its `<main>`: the layer may still hold a copy of the old page ([section 9](#9-keeping-the-old-page-on-screen)), so page scripts look inside `<main>`, not in the whole document;
 - waits until the page is ready to be seen (`mediaReady` in `media.ts`): the fonts, and the images on screen or just below it (within 1.25 screen heights), decoded with `img.decode()` so they appear without a flash. It never waits longer than `mediaTimeout` (1.5 seconds by default), and it doesn't make lazy images further down the page load early.
 
 ### Step 6: the reveal
@@ -190,7 +190,7 @@ On `astro:page-load` (`#onPageLoad`), the controller:
 
 - clears the layer: the panels are removed, the attributes are reset, and with `data-state="idle"` it's hidden again and clicks pass through it;
 - unlocks the page: `inert` is removed, and scrolling works again;
-- moves focus to the new `<main>` (without scrolling), so keyboard and screen reader users continue from the new content;
+- moves focus to the new `<main>` (without scrolling), so keyboard and screen reader users continue from the new content. A plain `<main>` can't take focus, so if it has no `tabindex`, it gets `tabindex="-1"` first;
 - fires `interlude:idle`, on which the demo's Lenis lets the visitor scroll again.
 
 ## 3. The layer's states
@@ -301,10 +301,11 @@ Barba's `sync` mode keeps the old and new pages in the document together, so a t
 
 So the transition keeps a copy instead, in the layer, which Astro doesn't touch. `keepOldPage()` (in `src/lib/interlude/old-page.ts`) makes it in `leave`, before anything moves:
 
+- **Of the page's blocks:** the children of `<body>`, except the layer and `fixed` elements (a skip link, a loader), which stay where they are on screen. `absolute` ones, like a header laid over a hero, are included, and land in the copy where they were.
 - **A still copy**, built element by element rather than with `cloneNode(true)`: scripts and templates are left out, ids and `data-entrance` are removed, custom elements (Astro islands among them) become plain elements so they don't start again, videos and canvases become pictures of their current frame, and iframes and other embeds become empty boxes of the same size. It's `inert`, so nothing in it can be reached.
 - **With the old page's styles:** the `<style>` and stylesheet `<link>` elements of the `<head>` are copied in with it. Otherwise, after the swap, the copy would lose the styles only the old page had.
 - **With `<body>`'s classes, data attributes and layout:** the copy's wrapper takes them from the old `<body>`. After the swap, `<body>` is the new page's, and the copy sits inside it, so styles hung on the old body (a per-page theme, like the demo's `data-ground`) would stop reaching it, and a body laid out as a flex column or a grid would no longer place its blocks.
-- **Where the page was scrolled to**, so it lines up with what was on screen.
+- **Where the page was scrolled to**, so it lines up with what was on screen, and where each element scrolled inside it was (a row of pictures, a code block): the copy puts those back on the next frame, once it's on the page, and again after the swap, since Astro moving the layer into the new `<body>` resets the scrolling inside it.
 
 The transition sets `solidCover: false`, so when `leave` ends the layer isn't painted over the copy ([section 3](#3-the-layers-states)). The copy stays on screen through the swap, hiding it, and `enter` finds it again with `oldPage()` and animates it together with the real new page underneath. When the reveal is over, the engine empties the layer, copy and copied styles included.
 

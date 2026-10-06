@@ -23,14 +23,21 @@ Requires Node 22.12 or later.
 
 Interlude is a set of files you copy into your site, not a package. Built with Astro 7.3.
 
-**1. Install GSAP:** `npm install gsap`. Add `three` if you'll use the WebGL transitions.
+**1. Install GSAP:** `npm install gsap`. For the WebGL transitions, also `npm install three` and `npm install -D @types/three` (without the types, the type check fails, and so does the build).
 
 **2. Copy these into your `src/`, at the same paths:**
 
 - `src/lib/interlude/`: the engine. Without WebGL transitions, leave out `webgl.ts`.
 - `src/components/Interlude.astro`: the layer the transitions draw in, and the script that starts Interlude.
 - `src/interlude.config.ts`: the settings.
-- The transitions you want, into `src/transitions/`: at least your default one (`peel`, unless you change `defaultTransition`, which needs `src/lib/interlude/old-page.ts`). Each transition says at the top of its file what else it needs: the WebGL ones `src/lib/interlude/webgl.ts` and three.js (`npm install three`), and `stack`, `slide-over`, `peel`, `slices`, `frame`, `carousel`, `cube`, `corner`, `tear` and `channel` `src/lib/interlude/old-page.ts`. Nothing else: their texts, colours and fonts are settings in the file, with fallbacks.
+- The transitions you want, into `src/transitions/`: at least your default one (`peel`, unless you change `defaultTransition`, which needs `src/lib/interlude/old-page.ts`). Each transition says at the top of its file what else it needs: the WebGL ones `src/lib/interlude/webgl.ts` and three.js, and `stack`, `slide-over`, `peel`, `slices`, `frame`, `carousel`, `cube`, `corner`, `tear` and `channel` `src/lib/interlude/old-page.ts`.
+
+Some of the transitions carry the demo's content or colours. Adapt them at the top of their files:
+
+- `particles` spells `WORD` ("Interlude"). Keep it short: a long word can't be read as dots on a phone.
+- `typewriter` types `PHRASE`, the demo's tagline.
+- `carousel` builds its row of pages from the links `LINKS` selects: the demo's header and list. Point it at your navigation.
+- The colours come from your CSS when it defines them, and fall back to the demo's otherwise: `--red` (`frame`, `corner`, `ink`, `spiral`, `velvet`), `--color-accent` (`dissolve`, `particles`), `--color-bg` (`particles`). `typewriter` uses `--font-mono`.
 
 **3. In your layout,** add Astro's router and the layer:
 
@@ -48,7 +55,7 @@ import Interlude from '../components/Interlude.astro';
   <body>
     <Interlude />
     <!-- your header… -->
-    <main>
+    <main tabindex="-1">
       <slot />
     </main>
   </body>
@@ -58,23 +65,56 @@ import Interlude from '../components/Interlude.astro';
 - `<ClientRouter />` turns on Astro's client-side navigation, which Interlude runs on.
 - `transition:animate="none"` turns off Astro's own view transition animations: Interlude does the animating.
 - `<Interlude />` must be a direct child of `<body>`.
-- Each page's content goes in a `<main>`: it's what transitions get as `context.content`.
+- Each page's content goes in a `<main>`: it's what transitions get as `context.content`. After each navigation, focus moves to it, so keyboard and screen reader users continue from the new content. `tabindex="-1"` lets it take focus (the engine adds it if it's missing); add `main:focus { outline: none; }` to your CSS, so no outline is drawn around the page.
 
-**4. Set the transition colour** in your CSS: `:root { --interlude-color: #111; }`.
+**4. In your CSS,** set the transitions' cover colour, and keep the page from widening while a transition moves it sideways (a scrollbar can flash otherwise):
 
-**5. For the WebGL transitions,** add `vite: { optimizeDeps: { include: ['three/webgpu', 'three/tsl'] } }` to `astro.config.mjs`. In development, it bundles three.js up front, so the first WebGL transition doesn't make Vite reload the page.
+```css
+:root {
+  --interlude-color: #111;
+}
+
+body {
+  overflow-x: clip;
+}
+```
+
+**5. For the WebGL transitions,** add this to `astro.config.mjs`:
+
+```js
+vite: {
+  optimizeDeps: { include: ['three/webgpu', 'three/tsl'] },
+  build: { chunkSizeWarningLimit: 1000 },
+},
+```
+
+The first line bundles three.js up front in development, so the first WebGL transition doesn't make Vite reload the page. The second raises Vite's warning about large files above three.js's size: only WebGL transitions load it.
 
 Every link between your pages now plays the default transition. Pick others per link with `data-transition` (see [Using transitions](#using-transitions)).
 
-Things to know:
+**What it costs:** every page loads GSAP (about 28 kB compressed), Astro's router (about 5 kB), the engine (about 4 kB) and the default transition. Each other transition loads when a link that uses it is hovered, focused or touched, and three.js (about 240 kB) only with a WebGL transition. Copying all the transitions costs nothing until one is used.
 
-- **If your site didn't use `<ClientRouter />` before,** its bundled scripts now run once per visit, not on every page: the router skips scripts that have already run. Move code that sets up a page into a page script ([Page scripts](#page-scripts)) or an `astro:page-load` listener.
+### Your site's scripts
+
+With `<ClientRouter />`, a navigation doesn't load a new document: the router swaps the new page in, and skips every script it has already run, recognised by its `src` or its text. That includes bundled scripts, the ones Astro inlines, and `is:inline` ones. So code that sets up a page when it loads now runs on the first page only: on the pages after it, buttons, menus and carousels stay dead, without an error.
+
+- **Set up pages in `onPage()`** ([Page scripts](#page-scripts)). `onPage(() => true, { init(main) { … } })` runs `init` on every page. Return a cleanup from it for whatever outlives the page: listeners on `window` or `document`, `matchMedia` listeners, library instances.
+- **`onPage()` works from a component's own `<script>`** too, not only from `src/scripts/pages/`: the script runs before its page is set up, also when that page is reached by a navigation.
+- **Prefer it to `astro:page-load`:** on the first load, the router fires `astro:page-load` only once every image has loaded, so on a page with many images its buttons wait for them. `onPage()` runs as soon as the HTML is ready.
+- **Look for the page's elements inside `main`,** the page's `<main>` that `init` gets, not in the whole document: during a transition, a still copy of the old page can be in the layer, with the same classes and data attributes. Outside `<main>`, use ids, which the copy doesn't keep.
+- **Every file in `src/scripts/pages/` is loaded on every page.** Import a heavy library (a carousel, a map) with `await import()` inside `init`, so only the pages that use it download it.
+- **An `is:inline` script that must run on every page** needs `data-astro-rerun`.
+- **`<html>`'s attributes are replaced on each navigation** with the new page's: a class a script set on it (a theme, a library's state) is gone after a navigation.
+- **Modal dialogs** (a `<dialog>` opened with `showModal()`: a menu, a cart) sit above everything, the transition's layer included. Close them on `interlude:leave` ([Events](#events)), or the cover plays behind them and they vanish at the swap.
+- **A link to the page you're on does nothing** ([Details](#details)), where it used to reload the page: a menu that closed on reload stays open. Close it when one of its links is clicked.
+- **Forms** that submit to your own site go through the router too. Add `data-astro-reload` to a form that must post as a normal page load.
 - **`transition:name` and `transition:animate` on elements won't play:** Interlude skips the browser's view transition, so nothing animates over its layer.
+- **Check your features on a page reached by a link, and after going back,** not only on a fresh load: that's where a missed script shows.
 
-Optional, from the demo:
+### Optional, from the demo
 
 - **The content's entrance:** copy `src/scripts/pages/entrance.ts` (files in `src/scripts/pages/` are loaded by themselves) and mark elements with `data-entrance` ([The entrance](#the-entrance)).
-- **Smooth scrolling:** `npm install lenis`, copy `src/scripts/smooth-scroll.ts`, import it in a `<script>` at the end of your layout, and copy the `html.lenis` rule from `src/styles/global.css`.
+- **Smooth scrolling:** `npm install lenis`, copy `src/scripts/smooth-scroll.ts`, import it in a `<script>` at the end of your layout, and copy the `html.lenis` rule from `src/styles/global.css`. If your site already uses Lenis, do with yours what that file does: stop it on `interlude:leave`, bring it to the scroll position Astro sets after the swap (`astro:after-swap`), and start it again on `interlude:idle`.
 - **The loader:** copy `src/components/Loader.astro` and add `<Loader />` to your layout.
 
 ## Start a new site from this one
@@ -94,7 +134,7 @@ Then put in your own details:
 - `public/`: the favicons.
 - `src/styles/global.css`: the colours and type. `--interlude-color` is the transitions' cover colour.
 
-Optional, from the demo, to keep or remove: the content's entrance (`src/scripts/pages/entrance.ts`), smooth scrolling (`src/scripts/smooth-scroll.ts`, its `<script>` in the layout, and the `lenis` package), and the loader (`src/components/Loader.astro`, and `<Loader />` in the layout). Without WebGL transitions, also remove `src/lib/interlude/webgl.ts`, the `optimizeDeps` line in `astro.config.mjs` and the `three` package.
+Optional, from the demo, to keep or remove: the content's entrance (`src/scripts/pages/entrance.ts`), smooth scrolling (`src/scripts/smooth-scroll.ts`, its `<script>` in the layout, and the `lenis` package), and the loader (`src/components/Loader.astro`, and `<Loader />` in the layout). Without WebGL transitions, also remove `src/lib/interlude/webgl.ts`, the `optimizeDeps` and `chunkSizeWarningLimit` lines in `astro.config.mjs`, and the `three` and `@types/three` packages.
 
 ## How it works
 
@@ -123,7 +163,7 @@ The transitions draw inside one persistent layer (`<Interlude />` in the layout,
 
 |                                         | Barba in Astro                                                 | Interlude                                                                                                                     |
 | --------------------------------------- | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Fetching, swapping, history             | Barba, about 10 kB gzipped, instead of `<ClientRouter />`      | Astro's `<ClientRouter />`, about 5 kB, plus about 4 kB for Interlude                                                         |
+| Fetching, swapping, history             | Barba, about 10 kB gzipped, instead of `<ClientRouter />`      | Astro's `<ClientRouter />`, about 5 kB, and Interlude, about 4 kB, plus GSAP (about 28 kB), which the transitions use         |
 | What a navigation swaps                 | The container (`data-barba="container"`) and the title         | The whole page, `<head>` included: each page's styles, scripts and metadata                                                   |
 | Astro's page scripts, `astro:page-load` | Don't run on Barba's navigations: redo that setup in its hooks | Run as usual                                                                                                                  |
 | Scroll position, back and forward       | Recorded; restoring it is up to you                            | Restored by Astro                                                                                                             |
@@ -315,15 +355,15 @@ For more than a full-screen shader, like particles or meshes, draw a scene of yo
 
 ## Page scripts
 
-Per-page code (carousels, observers, content animations) goes in `src/scripts/pages/`. Every file there is loaded once, and registers its hooks with `onPage()`:
+Per-page code (carousels, observers, content animations) goes in `src/scripts/pages/`, or in a component's own `<script>`. Every file in `src/scripts/pages/` is loaded once per visit, whatever the page, and registers its hooks with `onPage()`:
 
 ```ts
 import { onPage } from '../../lib/interlude';
 
 onPage('home', {
   // The page is in the DOM, before its reveal. Return a cleanup if needed.
-  init() {
-    const carousel = createCarousel();
+  init(main) {
+    const carousel = createCarousel(main.querySelector('.carousel'));
     return () => carousel.destroy();
   },
   // Alongside the reveal / the cover: animate the page's own content.
@@ -335,6 +375,8 @@ onPage('home', {
 ```
 
 Pages are identified by `<html data-page="…">`, set with the layout's `page` prop (`<BaseLayout page="transition">`). Match an id, a pattern (`/^trans/`) or anything with a function (`() => true` for every page). `src/scripts/pages/entrance.ts` is a complete example.
+
+`init` gets the page's `<main>`: look for the page's elements inside it, not in the whole document. During a transition, the layer can still hold a still copy of the old page ([Keeping the old page on screen](#keeping-the-old-page-on-screen)), with the same classes and data attributes, and it comes before `<main>` in the document: `document.querySelector('.carousel')` could find the copy's. For elements outside `<main>` (a header, a cart count), use ids, which the copy doesn't keep, or leave out the layer: `:not([data-interlude] *)`.
 
 `enter` runs whenever a page is shown, also without a transition: after `data-transition="none"`, and on the first load (`context.initial`). To animate content in, start `context.entrance` seconds in: that's when the transition says its cover is out of the way. It's `false` when there's nothing to animate in: the transition moves the content itself, or it's a first page nothing covered, already on screen. On the first load, `init` runs as soon as the document is parsed, without waiting for images.
 

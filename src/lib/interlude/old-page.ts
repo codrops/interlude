@@ -16,9 +16,8 @@
  * `[data-…]` or `.class` selectors, not `body…`: the copy is a `<div>`.
  *
  * Limits: it's a still picture (a video stops on its frame), a web component's
- * shadow DOM isn't copied (its children are), CSS that targets ids or
- * `<html>`'s attributes doesn't reach the copy, and areas scrolled inside the
- * page show their start. A page-wide rule only the old page had
+ * shadow DOM isn't copied (its children are), and CSS that targets ids or
+ * `<html>`'s attributes doesn't reach the copy. A page-wide rule only the old page had
  * (`<style is:global>`) also applies to the new one until the transition is
  * over.
  *
@@ -116,14 +115,15 @@ export const oldPage = (context: TransitionContext) =>
 
 /**
  * The page's blocks: the children of `<body>` (header, main, footer…), not the
- * layer, nor fixed or absolute ones like the skip link. What's copied, and what
- * a transition moves to move the whole real page.
+ * layer, nor `fixed` ones like a skip link or a loader, which stay put on screen.
+ * `absolute` ones are blocks too (a header laid over a hero): in the copy, they
+ * land where they were. What's copied, and what a transition moves to move the
+ * whole real page.
  */
 export function pageBlocks(context: TransitionContext) {
   return [...document.body.children].filter((el): el is HTMLElement => {
     if (!(el instanceof HTMLElement) || el.contains(context.root)) return false;
-    const { position } = getComputedStyle(el);
-    return position !== 'fixed' && position !== 'absolute';
+    return getComputedStyle(el).position !== 'fixed';
   });
 }
 
@@ -154,9 +154,23 @@ export function copyPage(context: TransitionContext) {
   // …and its layout, so the blocks sit where they do on the page.
   const body = getComputedStyle(document.body);
   for (const property of LAYOUT) copy.style.setProperty(property, body.getPropertyValue(property));
+  const scrolled: Scrolled[] = [];
   for (const el of pageBlocks(context)) {
-    const still = copyNode(el);
+    const still = copyNode(el, scrolled);
     if (still) copy.append(still);
+  }
+  // A copied element starts scrolled to its start (a row of pictures, a code
+  // block), and a scroll position only takes once it's laid out: put them back
+  // on the next frame, by when the transition has added the copy to the page,
+  // before anything is painted. And again after the swap: Astro moves the layer
+  // into the new page's <body>, and moving an element resets the scrolling
+  // inside it.
+  if (scrolled.length) {
+    const restore = () => {
+      for (const [el, left, top] of scrolled) el.scrollTo(left, top);
+    };
+    requestAnimationFrame(restore);
+    document.addEventListener('astro:after-swap', restore, { once: true });
   }
   copy.inert = true; // nothing in it can be clicked, focused or read out
   // Moved up by the scroll position, so it lines up with the page underneath.
@@ -164,8 +178,14 @@ export function copyPage(context: TransitionContext) {
   return copy;
 }
 
-/** A still copy of a node and everything in it, or `null` for what isn't seen (scripts, templates). */
-function copyNode(node: Node): Node | null {
+/** A copied element, and the scroll position its original had. */
+type Scrolled = [Element, number, number];
+
+/**
+ * A still copy of a node and everything in it, or `null` for what isn't seen
+ * (scripts, templates). Copies of scrolled elements are added to `scrolled`.
+ */
+function copyNode(node: Node, scrolled: Scrolled[]): Node | null {
   if (!(node instanceof Element)) return node.cloneNode(); // text and comments
   if (node instanceof HTMLScriptElement || node instanceof HTMLTemplateElement) return null;
   // A video or a canvas: the frame on screen now, painted once.
@@ -192,8 +212,9 @@ function copyNode(node: Node): Node | null {
       copy.style.setProperty(property, computed.getPropertyValue(property));
     }
   }
+  if (node.scrollLeft || node.scrollTop) scrolled.push([copy, node.scrollLeft, node.scrollTop]);
   for (const child of node.childNodes) {
-    const childCopy = copyNode(child);
+    const childCopy = copyNode(child, scrolled);
     if (childCopy) copy.append(childCopy);
   }
   return copy;

@@ -255,7 +255,7 @@ class Controller {
 
     const run = this.#run;
     const transition = this.#transition;
-    initPage();
+    initPage(content());
     if (!transition) return this.#appear();
     await mediaReady(content(), { timeout: config.mediaTimeout });
     if (run === this.#run) await this.#reveal(run, transition);
@@ -266,7 +266,7 @@ class Controller {
     if (this.#booted) return;
     this.#booted = true;
     const run = this.#run;
-    initPage();
+    initPage(content());
     if (this.#state !== 'covered') return this.#appear();
 
     const [transition] = await Promise.all([
@@ -446,7 +446,12 @@ class Controller {
     this.#clear();
     this.#unlock();
     // Keyboard and screen reader users continue from the new content (Astro announces the title).
-    if (!this.#context.initial) this.#context.content.focus({ preventScroll: true });
+    if (!this.#context.initial) {
+      const main = this.#context.content;
+      // A plain <main> can't take focus: give it `tabindex="-1"` (focusable from code, not by Tab).
+      if (!main.hasAttribute('tabindex')) main.tabIndex = -1;
+      main.focus({ preventScroll: true });
+    }
     this.#emit('idle');
   }
 

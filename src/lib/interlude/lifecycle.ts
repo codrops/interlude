@@ -36,10 +36,10 @@ const forCurrentPage = () => {
   return registrations.filter((registration) => registration.matches(page));
 };
 
-/** The page is in the DOM: run `init`, keeping any cleanup it returns. */
-export function initPage() {
+/** The page is in the DOM: run `init` with its `<main>`, keeping any cleanup it returns. */
+export function initPage(main: HTMLElement) {
   for (const registration of forCurrentPage()) {
-    const cleanup = registration.hooks.init?.();
+    const cleanup = registration.hooks.init?.(main);
     if (typeof cleanup === 'function') registration.cleanup = cleanup;
   }
 }

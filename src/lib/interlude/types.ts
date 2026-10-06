@@ -92,8 +92,13 @@ export interface PageHooks {
   /**
    * The page is in the DOM, before it's revealed. Set things up here (carousels,
    * observers…). May return a cleanup function, called before the page leaves.
+   *
+   * `main` is the page's `<main>`. Look for the page's elements inside it, not in
+   * the whole document: during a transition, the layer can still hold a copy of
+   * the old page, with the same classes and data attributes, before `<main>` in
+   * the document.
    */
-  init?: () => void | (() => void);
+  init?: (main: HTMLElement) => void | (() => void);
   /**
    * The page is being revealed: animate its content in. Also runs when a page
    * is shown without a transition, including the first load (`context.initial`),

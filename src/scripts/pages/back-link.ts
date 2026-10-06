@@ -10,8 +10,9 @@
 import { onPage } from '../../lib/interlude';
 
 onPage('transition', {
-  init() {
-    const link = document.querySelector<HTMLAnchorElement>('[data-back]');
+  init(main) {
+    // In the page's <main>: the layer may still hold the old page's copy, with its own Back link.
+    const link = main.querySelector<HTMLAnchorElement>('[data-back]');
     if (!link) return;
 
     const goBack = (event: MouseEvent) => {
