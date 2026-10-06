@@ -2,7 +2,9 @@
  * Slices: once the next page is ready, the page breaks into columns, and in
  * each one the next page pushes the old one up and out, column after column,
  * from left to right (downwards, from right to left, on "back"). Nothing moves
- * while the next page loads (the demo's loader shows if that takes a while).
+ * while the next page loads (the loader,
+ * `src/components/Loader.astro`, if the site has it, shows if that takes a
+ * while).
  *
  * Both pages are still copies here, one per column: the old page's, kept in
  * the layer through the swap (`keepOldPage()`), and the new page's, made once

@@ -2,8 +2,9 @@
  * Frame: once the next page is ready, a red rectangle grows from the middle of
  * the screen over the old page, and a beat behind it a window onto the next
  * page, so the next page grows inside a red frame. On "back" it plays in
- * reverse. Nothing moves while the next page loads: the demo's loader shows if
- * that takes a while (`src/components/Loader.astro`).
+ * reverse. Nothing moves while the next page loads: the loader
+ * (`src/components/Loader.astro`), if the site has it, shows if that takes a
+ * while.
  *
  * Both pages are on screen at once, like in `slide-over`: `keepOldPage()` keeps
  * a still copy of the old page in the layer, and `copyPage()` makes one of the

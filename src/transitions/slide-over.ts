@@ -1,8 +1,9 @@
 /**
  * Slide over: once the next page is ready, it slides up over this one, which
  * steps back into the dark. On "back" the same movement plays backwards.
- * Nothing moves while the next page loads: the demo's loader shows if that
- * takes a while (`src/components/Loader.astro`).
+ * Nothing moves while the next page loads: the loader
+ * (`src/components/Loader.astro`), if the site has it, shows if that takes a
+ * while.
  *
  * An example of the old and new pages on screen together, like Barba's `sync`
  * mode: `keepOldPage()` keeps a still copy of the old page in the layer, in

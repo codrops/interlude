@@ -2,8 +2,9 @@
  * Peel: once the next page is ready, the page turns over like a sheet of
  * paper, a fold sweeping from the bottom-right corner to the top-left one. On
  * "back" the previous page turns back over this one. Nothing moves while the
- * next page loads: the demo's loader shows if that takes a while
- * (`src/components/Loader.astro`).
+ * next page loads: the loader
+ * (`src/components/Loader.astro`), if the site has it, shows if that takes a
+ * while.
  *
  * It's all flat: the old page is a still copy kept in the layer
  * (`keepOldPage()`), over the real new page. The copy, the flap (the back of
