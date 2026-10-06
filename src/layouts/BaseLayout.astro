@@ -1,0 +1,58 @@
+---
+/**
+ * The one layout: document head, Astro's client router, the transition layer,
+ * header, content and footer.
+ */
+import type { ComponentProps } from 'astro/types';
+import { ClientRouter } from 'astro:transitions';
+import { Font } from 'astro:assets';
+import '../styles/global.css';
+import Seo from '../components/Seo.astro';
+import Interlude from '../components/Interlude.astro';
+import Loader from '../components/Loader.astro';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+/** The page id and ground, plus the metadata `<Seo>` takes (title, description, image…). */
+interface Props extends ComponentProps<typeof Seo> {
+  /** Page id for `<html data-page>`, matched by `onPage()` in page scripts. */
+  page: string;
+  /**
+   * The page's colours (see `src/styles/global.css`). Pages differ, so every
+   * transition goes from one colour to another, and you see it happen.
+   */
+  ground?: 'night' | 'white' | 'grey';
+}
+
+const { page, ground = 'white', ...seo } = Astro.props;
+---
+
+<!doctype html>
+<!-- Astro's own view transition animations are off: Interlude runs the show. -->
+<html lang="en" data-page={page} transition:animate="none">
+  <head>
+    <Seo {...seo} />
+    <Font cssVariable="--font-sans" preload />
+    <!-- Not preloaded: code only shows further down the page. -->
+    <Font cssVariable="--font-mono" />
+    <ClientRouter />
+  </head>
+  <!-- On <body>, which Astro swaps with each page: the ground changes with it. -->
+  <body data-ground={ground}>
+    <a class="skip-link" href="#main">
+      Skip to content
+    </a>
+    <Interlude />
+    <Header />
+    <main id="main" tabindex="-1">
+      <slot />
+    </main>
+    <Footer />
+    <!-- A loader at the cursor while a page loads, for some transitions: the demo's choice. -->
+    <Loader />
+    <!-- Smooth scrolling: the demo's choice, not Interlude's. Remove to scroll natively. -->
+    <script>
+      import '../scripts/smooth-scroll';
+    </script>
+  </body>
+</html>

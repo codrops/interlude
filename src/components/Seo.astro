@@ -1,0 +1,64 @@
+---
+/**
+ * Document metadata: title, description, canonical URL, icons, Open Graph and
+ * structured data.
+ */
+import type { ImageMetadata } from 'astro';
+import { getImage } from 'astro:assets';
+import { site } from '../config/site';
+
+interface Props {
+  /** Page title. The site name is appended; leave it out on the home page. */
+  title?: string;
+  description?: string;
+  /** Image shown when the page is shared. Defaults to `site.image`. */
+  image?: { src: ImageMetadata; alt: string };
+  /** Keep the page out of search results (the 404 page). */
+  noindex?: boolean;
+  /** Structured data (JSON-LD), see `src/lib/structured-data.ts`. */
+  schema?: Record<string, unknown>;
+}
+
+const {
+  title,
+  description = site.description,
+  image = site.image,
+  noindex = false,
+  schema,
+} = Astro.props;
+const fullTitle = title ? `${title} · ${site.name}` : `${site.name} · ${site.tagline}`;
+const canonical = new URL(Astro.url.pathname, Astro.site ?? Astro.url);
+// Social networks don't all read AVIF or WebP: share a JPEG.
+const shared = await getImage({ src: image.src, width: 1200, format: 'jpg' });
+const imageUrl = new URL(shared.src, Astro.site ?? Astro.url);
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+{noindex ? <meta name="robots" content="noindex" /> : <link rel="canonical" href={canonical} />}
+<!-- Google Search doesn't show SVG favicons: the PNG is for it. -->
+<link rel="icon" href="/favicon.png" type="image/png" sizes="96x96" />
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+<link rel="sitemap" href="/sitemap-index.xml" />
+<!-- The browser's bar, on phones: the pages' white ground. -->
+<meta name="theme-color" content="#ffffff" />
+<meta name="author" content={site.author.name} />
+<meta name="generator" content={Astro.generator} />
+
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content={site.name} />
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+{!noindex && <meta property="og:url" content={canonical} />}
+<meta property="og:image" content={imageUrl} />
+<meta property="og:image:width" content={String(shared.attributes.width)} />
+<meta property="og:image:height" content={String(shared.attributes.height)} />
+<meta property="og:image:alt" content={image.alt} />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:site" content={site.author.x} />
+
+{schema && <script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />}

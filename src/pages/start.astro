@@ -1,0 +1,224 @@
+---
+import { Code } from 'astro:components';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { site } from '../config/site';
+import Arrow from '../components/Arrow.astro';
+
+/** How a navigation goes, in three words: they're read as one sentence. */
+const how = [
+  {
+    title: 'Cover',
+    text: 'You click a link. While Astro fetches the next page, the transition covers this one.',
+  },
+  {
+    title: 'Swap',
+    text: "Astro's router swaps in the new page underneath the cover, and updates the history.",
+  },
+  {
+    title: 'Reveal',
+    text: "Once the new page's fonts and the images at the top are loaded, the transition uncovers it.",
+  },
+];
+
+const why = [
+  {
+    title: "Astro's own router",
+    text: 'Page loads, prefetching, history and scroll position stay with Astro, so its page scripts keep running with each navigation.',
+  },
+  {
+    title: 'Accessible',
+    text: 'Clicks and keys are blocked while a transition runs, focus moves to the new page, and with reduced motion pages swap without animation.',
+  },
+  {
+    title: 'WebGL when you want it',
+    text: "Shaders run on WebGPU, or on WebGL 2 where it isn't available. three.js loads only when a visitor hovers or taps a link that uses one.",
+  },
+];
+
+const steps = [
+  {
+    title: 'Set it up',
+    text: 'Clone the repository, then install and start the demo. It needs Node 22.12 or newer.',
+    lang: 'sh' as const,
+    code: 'npm install\nnpm run dev',
+  },
+  {
+    title: 'Add a transition',
+    text: 'Each file in src/transitions/ is one transition, and its name must match the file name. leave covers the page; enter uncovers the new one.',
+    lang: 'ts' as const,
+    code: `import { gsap } from 'gsap';
+import { defineTransition, panel } from '../lib/interlude';
+
+export default defineTransition({
+  name: 'rise',
+  leave: (context) =>
+    gsap.fromTo(panel(context), { yPercent: 100 }, { yPercent: 0, ease: 'power2.inOut' }),
+  enter: (context) =>
+    gsap.fromTo(panel(context), { yPercent: 0 }, { yPercent: -100, ease: 'power2.out' }),
+});`,
+  },
+  {
+    title: 'Use it',
+    text: 'Give a link a data-transition, or put one on an element around links to set it for all of them.',
+    lang: 'html' as const,
+    code: `<a href="/about/" data-transition="rise">About</a>
+
+<nav data-transition="rise">…</nav>`,
+  },
+];
+---
+
+<BaseLayout
+  page="start"
+  ground="white"
+  title="Get started"
+  description="Set up Interlude, write a transition and use it, in three steps."
+>
+  <div class="wrap">
+    <header class="start__head">
+      <h1 class="start__title" data-entrance="lines">
+        Get started
+      </h1>
+      <p class="lead" data-entrance>
+        No package to install: copy the engine into your Astro site, keep the transitions you want,
+        and write your own.
+      </p>
+    </header>
+
+    <section class="section" aria-labelledby="how-title">
+      <h2 id="how-title" class="eyebrow">
+        How it works
+      </h2>
+      <ol class="columns" role="list">
+        {how.map(({ title, text }) => (
+          <li class="column" data-entrance>
+            <h3 class="how__word">{title}</h3>
+            <p>{text}</p>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <section class="section" aria-labelledby="why-title">
+      <h2 id="why-title" class="eyebrow">
+        Why Interlude
+      </h2>
+      <ul class="columns" role="list">
+        {why.map(({ title, text }) => (
+          <li class="column" data-entrance>
+            <h3 class="why__title">{title}</h3>
+            <p>{text}</p>
+          </li>
+        ))}
+      </ul>
+    </section>
+
+    {steps.map(({ title, text, lang, code }, i) => (
+      <section class="step section split">
+        <div class="step__text" data-entrance>
+          <h2 class="step__title step__title--numbered">
+            {title}
+            <span class="number">{String(i + 1).padStart(2, '0')}</span>
+          </h2>
+          <p>{text}</p>
+        </div>
+        <div class="step__code" data-entrance>
+          <Code code={code} lang={lang} theme="css-variables" />
+        </div>
+      </section>
+    ))}
+
+    <section class="section split" aria-labelledby="more-title">
+      <h2 id="more-title" class="step__title" data-entrance>
+        Going further
+      </h2>
+      <div class="more" data-entrance>
+        <p class="prose">
+          The README covers the rest: writing WebGL shaders, page-specific code, and the navigation
+          events, for code that isn't tied to one page.
+        </p>
+        <p class="more__links">
+          {site.links.map(({ label, href }) => (
+            <a class="link eyebrow" href={href} target="_blank" rel="noopener">
+              {label}
+              <Arrow />
+              <span class="visually-hidden">(opens in a new tab)</span>
+            </a>
+          ))}
+        </p>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<style>
+  /* The title, at the size of the words below it, and the line about Interlude under it. */
+  .start__head {
+    display: grid;
+    gap: var(--space-s);
+    padding-top: clamp(3.5rem, 2rem + 4vw, 5.5rem);
+  }
+
+  .start__title {
+    font-size: var(--text-2xl);
+    line-height: 0.95;
+    letter-spacing: -0.045em;
+  }
+
+  /* Blocks side by side, as many as fit: three words, three reasons. */
+  .columns {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+    gap: var(--space-m) var(--space-xs);
+    margin-top: var(--space-m);
+  }
+
+  .column {
+    display: grid;
+    align-content: start;
+    gap: var(--space-xs);
+    max-width: 25rem;
+  }
+
+  .how__word {
+    font-size: var(--text-2xl);
+  }
+
+  .why__title {
+    font-size: 1.375rem;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+  }
+
+  .step__text {
+    display: grid;
+    align-content: start;
+    gap: var(--space-xs);
+    max-width: 30rem;
+  }
+
+  .step__title {
+    font-size: var(--text-xl);
+  }
+
+  /* Flex: the title and its number, with no space between them. */
+  .step__title--numbered {
+    display: flex;
+    align-items: flex-start;
+  }
+
+  /* Long lines scroll inside the block, they don't widen the lane. */
+  .step__code {
+    min-width: 0;
+  }
+
+  .more {
+    display: grid;
+    gap: var(--space-s);
+  }
+
+  .more__links {
+    display: flex;
+    gap: var(--space-m);
+  }
+</style>

@@ -1,0 +1,76 @@
+---
+/**
+ * The page transition layer, and the script that starts Interlude.
+ *
+ * Persisted across navigations (`transition:persist`), so the same element
+ * keeps covering the screen while Astro swaps the page underneath. Keep it a
+ * direct child of `<body>`: everything else there is made inert while a
+ * transition runs.
+ */
+import { interlude } from '../interlude.config';
+---
+
+<div
+  class="interlude"
+  data-interlude
+  data-state={interlude.revealOnLoad ? 'covered' : 'idle'}
+  data-cover={interlude.revealOnLoad ? 'solid' : undefined}
+  aria-hidden="true"
+  transition:persist="interlude"
+></div>
+
+<style is:global>
+  .interlude {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* While a transition runs, the layer also blocks clicks on the page below. */
+  .interlude:is([data-state='leaving'], [data-state='entering'], [data-state='covered']) {
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  /* Covered: painted solid, unless the transition hides the page its own way (`solidCover: false`). */
+  .interlude[data-state='covered'][data-cover='solid'] {
+    background: var(--interlude-color);
+  }
+
+  /* If scripts never start (blocked or broken), uncover the first page anyway. */
+  .interlude:not([data-ready])[data-state='covered'] {
+    animation: interlude-failsafe 0s 3s forwards;
+  }
+
+  @keyframes interlude-failsafe {
+    to {
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+
+  @media (scripting: none) {
+    .interlude {
+      display: none;
+    }
+  }
+
+  /* A full-screen filled layer, created by transitions with `panel()`. */
+  .interlude__panel {
+    position: absolute;
+    inset: 0;
+    background: var(--interlude-color);
+    will-change: transform, clip-path, opacity;
+  }
+</style>
+
+<script>
+  import { startInterlude } from '../lib/interlude/controller';
+
+  // Page scripts register their hooks with onPage() when imported.
+  import.meta.glob('../scripts/pages/*.ts', { eager: true });
+
+  startInterlude();
+</script>

@@ -1,0 +1,44 @@
+---
+/**
+ * A small arrow: after a link that opens in a new tab (`up-right`), or before
+ * one that goes back (`left`). Drawn, not typed: those characters aren't in the
+ * Latin-only font files, so each device would draw its own, much longer ones.
+ */
+interface Props {
+  to?: 'up-right' | 'left';
+}
+
+const { to = 'up-right' } = Astro.props;
+const paths = { 'up-right': 'M2 8 8 2M3.2 2H8v4.8', left: 'M8.5 5H1.5M4.8 1.8 1.5 5l3.3 3.2' };
+---
+
+<svg
+  class:list={['arrow', `arrow--${to}`]}
+  viewBox="0 0 10 10"
+  aria-hidden="true"
+  focusable="false"
+>
+  <path d={paths[to]} />
+</svg>
+
+<style>
+  .arrow {
+    display: inline-block;
+    width: 0.6em;
+    height: 0.6em;
+    vertical-align: 0.04em;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: square;
+  }
+
+  /* Space on the text's side. */
+  .arrow--up-right {
+    margin-left: 0.3em;
+  }
+
+  .arrow--left {
+    margin-right: 0.3em;
+  }
+</style>

@@ -1,0 +1,308 @@
+/* ==========================================================================
+   Tokens
+   ========================================================================== */
+
+:root {
+  /* The three grounds a page can have (see the layout's `ground`), and the accent. */
+  --night: #0c0c0c;
+  --white: #fff;
+  --grey: #a0a0a0;
+  --red: #d72811;
+
+  /* The colour page transitions cover the screen with. */
+  --interlude-color: #111111;
+
+  /* --font-sans and --font-mono come from `fonts` in astro.config.mjs. */
+
+  --text-label: 0.875rem;
+  --text-base: clamp(1rem, 0.95rem + 0.2vw, 1.0625rem);
+  --text-lead: clamp(1.25rem, 1rem + 0.8vw, 1.75rem);
+  --text-xl: clamp(2rem, 1.5rem + 1.6vw, 3rem);
+  --text-2xl: clamp(2.25rem, 1rem + 3.4vw, 4.5rem);
+  --text-display: clamp(3rem, 1.3rem + 5.6vw, 6.5rem);
+
+  --space-2xs: 0.5rem;
+  --space-xs: 0.875rem;
+  --space-s: 1.25rem;
+  --space-m: 2rem;
+  --space-l: clamp(3rem, 2rem + 3vw, 6rem);
+  --space-xl: clamp(4.5rem, 3rem + 5vw, 8rem);
+
+  --gutter: clamp(1rem, 0.2rem + 2vw, 2rem);
+  --max-width: 120rem;
+}
+
+/*
+ * Each page's ground: its colours, set on <body> by the layout. Every ground
+ * sets every colour: a still copy of the old page keeps its own ground in the
+ * transition layer (it carries <body>'s attributes), inside the new page's.
+ */
+/* The separator lines, on every ground: the text's colour, very faint. */
+:root,
+[data-ground] {
+  --color-line: color-mix(in srgb, var(--color-text) 12%, transparent);
+}
+
+:root,
+[data-ground='white'] {
+  --color-bg: var(--white);
+  --color-text: var(--night);
+  --color-muted: #6e6e73;
+  /* Names not pointed at in the transitions index: 3:1 on the ground, enough for large text. */
+  --color-dim: #8e8e93;
+  --color-accent: var(--red);
+}
+
+[data-ground='night'] {
+  --color-bg: var(--night);
+  --color-text: var(--white);
+  --color-muted: #98989d;
+  --color-dim: #636366;
+  --color-accent: var(--red);
+}
+
+[data-ground='grey'] {
+  --color-bg: var(--grey);
+  --color-text: var(--night);
+  --color-muted: #363636;
+  --color-dim: #4e4e4e;
+  --color-accent: var(--night); /* the red would barely show on grey */
+}
+
+[data-ground] {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+}
+
+/* ==========================================================================
+   Reset
+   ========================================================================== */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+* {
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100svh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* Some transitions move the content sideways: never let that scroll the page. */
+  overflow-x: clip;
+}
+
+/*
+ * Smooth scrolling (src/scripts/smooth-scroll.ts): Lenis clips the page's
+ * overflow while it's stopped, during transitions, which hides a classic
+ * scrollbar and shifts the page sideways under the cover. Scrolling stays
+ * blocked without it: Interlude holds the wheel, touch and scroll keys while a
+ * transition runs.
+ * https://github.com/darkroomengineering/lenis/blob/v1.3.26/packages/core/lenis.css#L6-L8
+ */
+html.lenis:not(.lenis-autoToggle).lenis-stopped {
+  overflow: visible;
+}
+
+img,
+picture,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+h1,
+h2,
+h3 {
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.045em;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+ul[role='list'],
+ol[role='list'] {
+  padding: 0;
+  list-style: none;
+}
+
+a {
+  color: inherit;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+::selection {
+  background: var(--color-text);
+  color: var(--color-bg);
+}
+
+/* ==========================================================================
+   Accessibility
+   ========================================================================== */
+
+/* In the text's colour: the accent is too light on the light grounds. */
+:focus-visible {
+  outline: 2px solid var(--color-text);
+  outline-offset: 3px;
+}
+
+/* <main> takes focus after each navigation: no ring for that. */
+main:focus {
+  outline: none;
+}
+
+.skip-link {
+  position: fixed;
+  top: var(--space-2xs);
+  left: var(--space-2xs);
+  z-index: 1100;
+  padding: var(--space-2xs) var(--space-xs);
+  background: var(--color-text);
+  color: var(--color-bg);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Layout and shared patterns
+   ========================================================================== */
+
+.wrap {
+  width: min(100% - 2 * var(--gutter), var(--max-width));
+  margin-inline: auto;
+}
+
+/* The content between header and footer fills the screen, so the footer stays at the bottom. */
+main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+/* A section under a line, the space of a section above it. */
+.section {
+  margin-top: var(--space-xl);
+  padding-top: var(--space-s);
+  border-top: 1px solid var(--color-line);
+}
+
+/* Two lanes from 60rem, each half the width: most blocks start on one or the other. */
+.split {
+  display: grid;
+  gap: var(--space-m) var(--space-xs);
+}
+
+@media (min-width: 60rem) {
+  .split {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* Small labels: the header, section names, facts. */
+.eyebrow {
+  font-size: var(--text-label);
+  line-height: 1.4;
+}
+
+/* A small number, set high beside a word: the transitions' numbers. */
+.number {
+  display: inline-block;
+  padding-left: 0.2em;
+  font-size: max(0.2em, 0.75rem);
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  vertical-align: top;
+  color: var(--color-muted);
+}
+
+.lead {
+  max-width: 35rem;
+  font-size: var(--text-lead);
+  line-height: 1.25;
+  letter-spacing: -0.025em;
+}
+
+.prose {
+  max-width: 37.5rem;
+}
+
+.prose > * + * {
+  margin-top: 1.1em;
+}
+
+/* Clips an image, for its reveal. */
+.frame {
+  overflow: hidden;
+}
+
+/* Code: inline, and blocks from Astro's <Code theme="css-variables">. */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+
+.astro-code {
+  --astro-code-foreground: var(--white);
+  --astro-code-background: var(--night);
+  --astro-code-token-keyword: var(--red);
+  --astro-code-token-string: #dccba4;
+  --astro-code-token-string-expression: #dccba4;
+  --astro-code-token-comment: #8a8780;
+  --astro-code-token-constant: var(--white);
+  --astro-code-token-function: var(--white);
+  --astro-code-token-parameter: var(--white);
+  --astro-code-token-punctuation: #bdbab2;
+  --astro-code-token-link: #dccba4;
+  padding: var(--space-s) var(--space-m) var(--space-s) var(--space-s);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  overflow-x: auto;
+  /* The characters you'd type: no "=>" turned into an arrow. */
+  font-variant-ligatures: none;
+}
+
+/* A small link, underlined: "Back home", "Code" with its arrow. */
+.link {
+  display: inline-block;
+  padding-block: var(--space-2xs);
+  text-decoration: underline;
+}
+
+.link:is(:hover, [data-chosen]) {
+  text-decoration-thickness: 2px;
+}

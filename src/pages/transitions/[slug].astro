@@ -1,0 +1,245 @@
+---
+import { render } from 'astro:content';
+import type { GetStaticPaths } from 'astro';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Arrow from '../../components/Arrow.astro';
+import { getTransitions, transitionNumber, transitionPath } from '../../lib/transitions';
+import { interlude } from '../../interlude.config';
+
+export const getStaticPaths = (async () => {
+  const transitions = await getTransitions();
+  const count = transitions.length;
+  /** The transition at `i` (wrapping around at the ends), with its number. */
+  const at = (i: number) => {
+    const index = (i + count) % count;
+    return { name: transitions[index].name, number: transitionNumber(index) };
+  };
+  // In order, each page links to the one before and after it.
+  return transitions.map((transition, i) => ({
+    params: { slug: transition.name },
+    props: {
+      transition,
+      number: transitionNumber(i),
+      previous: at(i - 1),
+      next: at(i + 1),
+    },
+  }));
+}) satisfies GetStaticPaths;
+
+const { transition, number, previous, next } = Astro.props;
+const { name, group, entry } = transition;
+const { Content } = entry ? await render(entry) : { Content: undefined };
+// Shared with the page: its poster, if it has one (otherwise the site's default image).
+const poster = entry?.data.poster && {
+  src: entry.data.poster,
+  alt: entry.data.posterAlt ?? `The ${name} transition, halfway.`,
+};
+// Said here, from the config, rather than in each page's text: it can't drift.
+const isDefault = name === interlude.defaultTransition;
+---
+
+<BaseLayout
+  page="transition"
+  ground={entry?.data.ground ?? 'white'}
+  title={name}
+  description={entry?.data.summary ?? `The ${name} transition.`}
+  image={poster}
+>
+  <article class="detail wrap">
+    <header class="detail__head split">
+      <!-- The name's length, for the title to fit its lane (see .detail__title). -->
+      <div class="detail__intro" style={`--chars: ${name.length}`}>
+        <!-- Acts like the browser's back button (src/scripts/pages/back-link.ts); a link to the home page without history. -->
+        <a class="detail__back eyebrow" href="/" data-back data-entrance>
+          <Arrow to="left" />
+          Back
+        </a>
+        <p class="detail__kicker" data-entrance>
+          {number} <span>({group.label.toLowerCase()})</span>
+        </p>
+        <h1 class="detail__title" data-entrance="lines">
+          {name}
+        </h1>
+      </div>
+      {entry && (
+        <p class="lead" data-entrance>
+          {entry.data.summary}
+        </p>
+      )}
+    </header>
+
+    <div class="detail__body split">
+      <div class="prose" data-entrance>
+        {Content ? <Content /> : <p>No description yet.</p>}
+      </div>
+      <dl class="detail__facts" data-entrance>
+        <div>
+          <dt class="eyebrow">File</dt>
+          <dd>
+            <code>src/transitions/{name}.ts</code>
+            <p class="detail__note">Its settings are at the top of the file.</p>
+          </dd>
+        </div>
+        {isDefault && (
+          <div>
+            <dt class="eyebrow">Default</dt>
+            <dd>
+              <p class="detail__note">Used by links that don't name a transition.</p>
+            </dd>
+          </div>
+        )}
+      </dl>
+    </div>
+  </article>
+
+  <!-- Each link plays the transition it leads to. -->
+  <nav class="pager section wrap" aria-label="Other transitions">
+    <a href={transitionPath(previous.name)} data-transition={previous.name} rel="prev">
+      <span class="eyebrow">Previous</span>
+      <span class="pager__name">
+        {previous.name}
+        <span class="number" aria-hidden="true">
+          {previous.number}
+        </span>
+      </span>
+    </a>
+    <a href={transitionPath(next.name)} data-transition={next.name} rel="next">
+      <span class="eyebrow">Next</span>
+      <span class="pager__name">
+        {next.name}
+        <span class="number" aria-hidden="true">
+          {next.number}
+        </span>
+      </span>
+    </a>
+  </nav>
+</BaseLayout>
+
+<style>
+  .detail__head {
+    align-items: end;
+    padding-top: clamp(3.5rem, 2rem + 4vw, 5.5rem);
+  }
+
+  /* Its width is what the title fits in. */
+  .detail__intro {
+    container-type: inline-size;
+  }
+
+  .detail__back {
+    display: inline-block;
+    margin-bottom: var(--space-s);
+    padding-block: var(--space-2xs);
+    text-decoration: none;
+  }
+
+  .detail__back:is(:hover, [data-chosen]) {
+    text-decoration: underline;
+  }
+
+  .detail__kicker {
+    font-size: var(--text-label);
+    line-height: 1.4;
+    color: var(--color-muted);
+  }
+
+  .detail__kicker span {
+    margin-left: 0.4em;
+  }
+
+  /*
+   * Large, but never wider than its lane: a long name gets smaller. A letter
+   * of Inter, tightly spaced, is up to 0.6em wide (an "m" or a "w" makes a
+   * name wider), so `--chars` letters always fit in the lane's width (100cqi)
+   * at 100cqi / (--chars × 0.62).
+   */
+  .detail__title {
+    font-size: min(clamp(6rem, 2rem + 13vw, 14rem), 100cqi / (var(--chars) * 0.62));
+    line-height: 0.88;
+    letter-spacing: -0.055em;
+    /* The descenders (p, g) need room below. */
+    padding-bottom: 0.12em;
+  }
+
+  .detail__head .lead {
+    padding-bottom: 0.4em;
+  }
+
+  .detail__body {
+    margin-top: var(--space-xl);
+  }
+
+  /* Facts in the left lane from 60rem, the description in the right one. */
+  @media (min-width: 60rem) {
+    .detail__facts {
+      grid-row: 1;
+      grid-column: 1;
+    }
+  }
+
+  @media (max-width: 59.99rem) {
+    .detail__facts {
+      padding-top: var(--space-s);
+      border-top: 1px solid var(--color-line);
+    }
+  }
+
+  .detail__facts {
+    display: grid;
+    gap: var(--space-s);
+    align-content: start;
+  }
+
+  .detail__facts dt {
+    margin-bottom: 0.375rem;
+  }
+
+  .detail__facts dd {
+    margin: 0;
+  }
+
+  .detail__note {
+    margin-top: 0.375rem;
+    color: var(--color-muted);
+  }
+
+  .prose :global(a) {
+    text-decoration: underline;
+  }
+
+  /* Side by side at every width: the next one starts at the right lane. */
+  .pager {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-xs);
+  }
+
+  .pager a {
+    display: grid;
+    align-content: start;
+    gap: 0.625rem;
+    text-decoration: none;
+  }
+
+  .pager__name {
+    /* Flex: the name and its number, with no space between them. */
+    display: flex;
+    align-items: flex-start;
+    font-size: var(--text-2xl);
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: -0.045em;
+    overflow-wrap: anywhere;
+  }
+
+  /* The number keeps its width when a long name wraps on a phone. */
+  .pager__name .number {
+    flex: none;
+  }
+
+  .pager a:is(:hover, [data-chosen]) .pager__name {
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 0.12em;
+  }
+</style>

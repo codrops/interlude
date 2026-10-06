@@ -1,0 +1,51 @@
+---
+/**
+ * The foot of every page: the index, small, so every transition is a click
+ * away (but not on the home page, which is the index itself), then a row of
+ * facts about Interlude.
+ */
+import TransitionIndex from './TransitionIndex.astro';
+import { site } from '../config/site';
+
+const home = Astro.url.pathname === '/';
+---
+
+<footer class:list={['footer', 'wrap', { 'footer--home': home }]}>
+  {!home && <TransitionIndex size="small" />}
+  <!-- No entrance: at the very end of the page, it may never scroll far enough in to start one. -->
+  <ul class="footer__facts eyebrow" role="list">
+    <li>Built on Astro's ClientRouter and GSAP</li>
+    <li>WebGL with three.js</li>
+    <li>MIT licence</li>
+    <li>Made by {site.author.name} with Claude</li>
+  </ul>
+</footer>
+
+<style>
+  .footer {
+    display: grid;
+    gap: var(--space-xl);
+    padding-block: var(--space-xl) var(--space-s);
+  }
+
+  /* On the home page, just the facts, at the bottom of the screen under the index. */
+  .footer--home {
+    padding-top: 0;
+  }
+
+  /* Phones: one fact per line. Wider: one quiet row, the facts set apart by a dot. */
+  @media (min-width: 48rem) {
+    .footer__facts {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      column-gap: 0.6em;
+    }
+
+    /* The dot isn't read out: `/ ''` is its text alternative, none. */
+    .footer__facts li + li::before {
+      content: '·' / '';
+      margin-inline-end: 0.6em;
+    }
+  }
+</style>

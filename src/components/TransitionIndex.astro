@@ -1,0 +1,158 @@
+---
+/**
+ * The transitions index: every transition's name as one sentence, grouped and
+ * ordered by `src/lib/transitions.ts`. Each name links to its page and plays
+ * its transition on the way there. Small, on a transition's page, that
+ * transition is lit.
+ *
+ * The punctuation and the numbers are only seen: screen readers get a list of
+ * links, each named after its transition.
+ */
+import { getTransitionGroups, transitionNumber, transitionPath } from '../lib/transitions';
+
+interface Props {
+  /** `large` on the home page, `small` at the foot of the others. */
+  size?: 'large' | 'small';
+}
+
+const { size = 'large' } = Astro.props;
+const groups = await getTransitionGroups();
+const total = groups.reduce((sum, group) => sum + group.transitions.length, 0);
+const path = Astro.url.pathname;
+
+/**
+ * What follows a name: a comma, a semicolon to end its group, a full stop at
+ * the end. Large (the home page), nothing: the names and their numbers are
+ * enough to tell them apart.
+ */
+function mark(index: number, lastInGroup: boolean) {
+  if (size === 'large') return '';
+  if (index === total - 1) return '.';
+  return lastInGroup ? ';' : ',';
+}
+
+// The sentence, numbered across the groups.
+let count = 0;
+const sentence = groups.map((group) => ({
+  label: group.label.toLowerCase(),
+  items: group.transitions.map(({ name }, i) => {
+    const index = count++;
+    return {
+      name,
+      number: transitionNumber(index),
+      mark: mark(index, i === group.transitions.length - 1),
+    };
+  }),
+}));
+
+// Large, each name comes in on its own; small, the whole sentence at once.
+const each = size === 'large' ? '' : undefined;
+---
+
+<nav class:list={['index', `index--${size}`]} aria-label="Transitions">
+  <ul class="index__groups" role="list" data-entrance={size === 'small' ? '' : undefined}>
+    {sentence.map(({ label, items }) => (
+      <li class="index__group">
+        <span class="index__label" data-entrance={each}>
+          ({label})
+        </span>
+        <ul class="index__list" role="list">
+          {items.map(({ name, number, mark }) => (
+            <li class="index__item" data-entrance={each}>
+              <a
+                class="index__link"
+                href={transitionPath(name)}
+                data-transition={name}
+                aria-current={path === transitionPath(name) ? 'page' : undefined}
+              >
+                {name}
+                <span aria-hidden="true">{mark}</span>
+                <span class="number" aria-hidden="true">
+                  {number}
+                </span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<style>
+  .index {
+    font-weight: 500;
+    letter-spacing: -0.045em;
+    color: var(--color-dim);
+  }
+
+  .index--large {
+    font-size: clamp(2.25rem, 0.8rem + 4.6vw, 4.75rem);
+    line-height: 1.05;
+    color: var(--color-text);
+  }
+
+  /*
+   * The home page: every name in the text colour, and the others step back
+   * while one is pointed at, focused or chosen (`data-chosen`, set as a
+   * transition starts: see src/scripts/pages/chosen.ts).
+   */
+  .index--large:has(.index__link:is(:hover, :focus-visible, [data-chosen]))
+    .index__link:not(:hover, :focus-visible, [data-chosen]) {
+    color: var(--color-dim);
+  }
+
+  .index--small {
+    max-width: 70rem;
+    font-size: clamp(1.25rem, 0.9rem + 1.1vw, 1.75rem);
+    line-height: 1.2;
+    letter-spacing: -0.035em;
+  }
+
+  /* One run of text: the lists flow inline, and each name wraps as a whole, with its number. */
+  .index__groups,
+  .index__group,
+  .index__list {
+    display: inline;
+  }
+
+  .index__item {
+    display: inline-block;
+    margin-right: 0.25em;
+  }
+
+  .index__label {
+    display: inline-block;
+    margin-right: 0.9em;
+    font-size: max(0.22em, 0.875rem);
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--color-muted);
+  }
+
+  /* Flex: the name, its punctuation and its number sit together, with no spaces between them. */
+  .index__link {
+    display: inline-flex;
+    align-items: baseline;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+
+  .index__link .number {
+    align-self: flex-start;
+  }
+
+  /* Small, the numbers would be too small to read: names only. */
+  .index--small .number {
+    display: none;
+  }
+
+  /* Dim, except the one pointed at, focused, or whose page this is. */
+  .index__link:is(:hover, :focus-visible, [data-chosen], [aria-current='page']) {
+    color: var(--color-text);
+  }
+
+  .index__link:is(:hover, :focus-visible, [data-chosen], [aria-current='page']) .number {
+    color: var(--color-accent);
+  }
+</style>

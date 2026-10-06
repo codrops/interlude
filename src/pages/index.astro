@@ -1,0 +1,23 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import TransitionIndex from '../components/TransitionIndex.astro';
+import { site } from '../config/site';
+import { websiteSchema } from '../lib/structured-data';
+---
+
+<BaseLayout page="home" ground="white" schema={websiteSchema}>
+  <div class="home wrap">
+    <h1 class="visually-hidden">
+      {site.name}: {site.tagline}
+    </h1>
+    <TransitionIndex />
+  </div>
+</BaseLayout>
+
+<style>
+  /* The index, with room under it: the footer's facts sit at the bottom of the screen. */
+  .home {
+    flex: 1;
+    padding-block: clamp(4rem, 2rem + 5vw, 6.5rem) var(--space-xl);
+  }
+</style>

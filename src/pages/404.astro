@@ -1,0 +1,51 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout page="404" ground="white" title="Page not found" noindex>
+  <div class="notfound wrap">
+    <p class="notfound__code" data-entrance>
+      404
+    </p>
+    <h1 class="notfound__title" data-entrance="lines">
+      Page not found
+    </h1>
+    <div class="notfound__more" data-entrance>
+      <p class="lead">The address may be wrong, or the page may have moved.</p>
+      <a class="link eyebrow" href="/">
+        Back home
+      </a>
+    </div>
+  </div>
+</BaseLayout>
+
+<style>
+  .notfound {
+    display: grid;
+    gap: var(--space-s);
+    padding-top: clamp(4rem, 2rem + 5vw, 6.5rem);
+  }
+
+  .notfound__code {
+    font-size: var(--text-label);
+    color: var(--color-muted);
+  }
+
+  .notfound__title {
+    max-width: 18ch;
+    font-size: var(--text-display);
+    line-height: 0.94;
+  }
+
+  .notfound__more {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-2xs) var(--space-m);
+    margin-top: var(--space-2xs);
+  }
+
+  .notfound__more .lead {
+    color: var(--color-muted);
+  }
+</style>

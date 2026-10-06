@@ -1,0 +1,140 @@
+---
+import { site } from '../config/site';
+import Arrow from './Arrow.astro';
+import { getTransitions } from '../lib/transitions';
+
+const count = (await getTransitions()).length;
+const path = Astro.url.pathname;
+/** A nav item is current on its own page and on the pages below it. */
+const isCurrent = (href: string) => path.startsWith(href);
+---
+
+<header class="header">
+  <div class="header__inner wrap">
+    <div class="header__brand">
+      <a class="header__name" href="/">
+        {site.name}
+      </a>
+      <p class="header__tagline">{site.tagline}</p>
+    </div>
+    <p class="header__count eyebrow">{count} transitions</p>
+    <nav class="header__nav" aria-label="Main">
+      <ul role="list">
+        {site.nav.map(({ label, href }) => (
+          <li>
+            <a class="eyebrow" href={href} aria-current={isCurrent(href) ? 'page' : undefined}>
+              {label}
+            </a>
+          </li>
+        ))}
+        {site.links.map(({ label, href }) => (
+          <li>
+            <a class="eyebrow" href={href} target="_blank" rel="noopener">
+              {label}
+              <Arrow />
+              <span class="visually-hidden">(opens in a new tab)</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<style>
+  /* A faint line under the header, the full width of the page. */
+  .header {
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  /*
+   * Phones: two rows, the name and the links, then the tagline and the count.
+   * From 64rem, one: the name and tagline, the count in the middle, the links.
+   */
+  .header__inner {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'name nav'
+      'tagline count';
+    align-items: baseline;
+    gap: 0.125rem var(--space-xs);
+    padding-block: var(--space-xs);
+  }
+
+  .header__brand {
+    display: contents;
+  }
+
+  .header__name {
+    grid-area: name;
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    text-decoration: none;
+  }
+
+  .header__tagline {
+    grid-area: tagline;
+    font-size: var(--text-label);
+    color: var(--color-muted);
+    /* On one line: on phones it can run on under the count's column, which is mostly empty. */
+    min-width: 0;
+    white-space: nowrap;
+  }
+
+  .header__count {
+    grid-area: count;
+    justify-self: end;
+    color: var(--color-muted);
+  }
+
+  .header__nav {
+    grid-area: nav;
+  }
+
+  .header__nav ul {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0 var(--space-s);
+  }
+
+  .header__nav a {
+    display: inline-block;
+    padding-block: var(--space-2xs);
+    text-decoration: none;
+  }
+
+  .header__nav a:is(:hover, [data-chosen]),
+  .header__nav a[aria-current='page'] {
+    text-decoration: underline;
+  }
+
+  @media (min-width: 64rem) {
+    .header__inner {
+      grid-template-columns: 1fr auto 1fr;
+      grid-template-areas: 'brand count nav';
+      padding-block: var(--space-s);
+    }
+
+    .header__brand {
+      display: flex;
+      align-items: baseline;
+      gap: 0.875rem;
+      grid-area: brand;
+    }
+
+    .header__count {
+      justify-self: center;
+    }
+
+    .header__nav {
+      justify-self: end;
+    }
+
+    .header__nav ul {
+      gap: 0 var(--space-m);
+    }
+  }
+</style>

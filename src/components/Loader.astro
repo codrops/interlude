@@ -1,0 +1,94 @@
+---
+/**
+ * A loader at the cursor, while the next page loads: one of the demo's design
+ * choices, not part of Interlude. To go without, remove `<Loader />` from
+ * `src/layouts/BaseLayout.astro`.
+ *
+ * Only for the transitions in `SHOW_FOR` (in the script below), once the page
+ * is covered and the wait has passed `DELAY`: with prefetching, most
+ * navigations never show it. `transition:persist` keeps it through the swap.
+ */
+---
+
+<div class="loader" data-loader aria-hidden="true" transition:persist="loader"></div>
+
+<style>
+  .loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 1001; /* over the transition layer */
+    width: 1.5rem;
+    height: 1.5rem;
+    margin: -0.75rem 0 0 -0.75rem; /* centred on its position */
+    border: 2px solid rgb(128 128 128 / 0.35); /* visible on light pages and dark covers */
+    border-top-color: var(--color-accent, currentColor);
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity 0.2s,
+      visibility 0s 0.2s;
+  }
+
+  .loader.is-visible {
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.2s;
+    animation: loader-spin 0.8s linear infinite;
+  }
+
+  @keyframes loader-spin {
+    to {
+      rotate: 1turn;
+    }
+  }
+</style>
+
+<script>
+  // Settings
+  const SHOW_FOR = ['slide-over', 'peel', 'slices', 'frame', 'carousel', 'cube', 'corner', 'tear']; // the transitions that show it: those that wait for the next page before they show it
+  const DELAY = 300; // ms of waiting before it shows
+  const OFFSET = 18; // px down and to the right of the pointer, like a busy cursor
+
+  const loader = document.querySelector<HTMLElement>('[data-loader]');
+  let timer = 0;
+  let waiting = false;
+
+  /** Moves it next to a point on screen (the pointer, or the link chosen with the keyboard). */
+  const place = (x: number, y: number) => {
+    if (loader) loader.style.translate = `${x + OFFSET}px ${y + OFFSET}px`;
+  };
+
+  const hide = () => {
+    waiting = false;
+    clearTimeout(timer);
+    loader?.classList.remove('is-visible');
+  };
+
+  // A navigation starts: start from where it was asked for.
+  document.addEventListener('interlude:leave', ({ detail }) => {
+    hide();
+    place(detail.origin.x, detail.origin.y);
+  });
+
+  // The page is covered and the next one isn't ready yet: show it, if that lasts.
+  document.addEventListener('interlude:covered', ({ detail }) => {
+    if (!SHOW_FOR.includes(detail.transition)) return;
+    waiting = true;
+    timer = window.setTimeout(() => loader?.classList.add('is-visible'), DELAY);
+  });
+
+  // The next page is being revealed: the wait is over.
+  document.addEventListener('interlude:enter', hide);
+
+  // Follow the pointer while waiting.
+  window.addEventListener(
+    'pointermove',
+    (event) => waiting && place(event.clientX, event.clientY),
+    {
+      passive: true,
+    }
+  );
+</script>
