@@ -17,6 +17,6 @@ export const site = {
   /** Where the project lives. The article link is a placeholder until the article is out. */
   links: [
     { label: 'Code', href: 'https://github.com/codrops/interlude' },
-    { label: 'Article', href: 'https://tympanus.net/codrops/' },
+    { label: 'Article', href: 'https://tympanus.net/codrops/?p=123511' },
   ],
 };
