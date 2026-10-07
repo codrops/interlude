@@ -5,7 +5,7 @@ import sitemap from '@astrojs/sitemap';
 // https://docs.astro.build/en/reference/configuration-reference/
 export default defineConfig({
   // Your production URL: used for canonical links, Open Graph and the sitemap.
-  site: 'https://example.com',
+  site: 'https://interlude.crnacura.workers.dev/',
   // With <ClientRouter />, links are prefetched on hover (or focus), so the
   // next page is often ready before its cover transition even finishes.
   prefetch: {
