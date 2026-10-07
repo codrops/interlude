@@ -173,7 +173,7 @@ The router runs the new page's scripts, skipping any that already ran (Interlude
 On `astro:page-load` (`#onPageLoad`), the controller:
 
 - runs the page scripts' `init` hooks for the new page, with its `<main>`: the layer may still hold a copy of the old page ([section 9](#9-keeping-the-old-page-on-screen)), so page scripts look inside `<main>`, not in the whole document;
-- waits until the page is ready to be seen (`mediaReady` in `media.ts`): the fonts, and the images on screen or just below it (within 1.25 screen heights), decoded with `img.decode()` so they appear without a flash. It never waits longer than `mediaTimeout` (1.5 seconds by default), and it doesn't make lazy images further down the page load early;
+- waits until the page is ready to be seen (`mediaReady` in `media.ts`): the fonts, and the images on screen or just below it (within 1.25 screen heights), decoded with `img.decode()` so they appear without a flash. Images off to the side, like a carousel's far slides, aren't waited for: a lazy one doesn't load until it's scrolled to, so waiting for it would only run into the timeout. It never waits longer than `mediaTimeout` (1.5 seconds by default), and it doesn't make lazy images further down the page load early;
 - at the same time, if `minCoverTime` is set, waits until the page has been covered that long, counted from the end of `leave` (step 3).
 
 ### Step 6: the reveal

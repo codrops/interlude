@@ -467,7 +467,7 @@ The transition colour is `--interlude-color` in `src/styles/global.css`.
 ## Details
 
 - **Smooth scrolling** is the demo's, not Interlude's: `src/scripts/smooth-scroll.ts` runs one [Lenis](https://github.com/darkroomengineering/lenis) instance for the whole visit, and follows Interlude's events. It stops when a transition starts (`interlude:leave`), catches up after each swap with the scroll position Astro's router set (the top, or where you were when going back), and starts again when the page is shown (`interlude:idle`). It's off with reduced motion. To scroll natively, remove its `<script>` from the layout.
-- **Waiting for media:** before a reveal, the fonts and the images near the top of the page are awaited with `img.decode()`, capped by `mediaTimeout`. Lazy images further down aren't forced to load.
+- **Waiting for media:** before a reveal, the fonts and the images on screen (or just below the top of it) are awaited with `img.decode()`, capped by `mediaTimeout`. Images off to the side (a carousel's far slides) or further down aren't waited for, and lazy ones aren't forced to load.
 - **Overlapping navigations** (clicking back mid-transition, for instance) share one cover instead of starting another, and outdated steps are dropped.
 - **Links to the current page do nothing:** a plain click on a link to the page you're on is cancelled, so no transition plays between two identical pages. Links with a hash, to other sites or new tabs, with a modifier key, and `data-astro-reload` links are left alone.
 - **Native swipe back:** when the browser already animated a history navigation (a swipe on touch devices), the swap happens without a transition.
