@@ -30,7 +30,7 @@ Interlude is a set of files you copy into your site, not a package. Built with A
 - `src/lib/interlude/`: the engine. Without WebGL transitions, leave out `webgl.ts`.
 - `src/components/Interlude.astro`: the layer the transitions draw in, and the script that starts Interlude.
 - `src/interlude.config.ts`: the settings.
-- The transitions you want, into `src/transitions/`: at least your default one (`peel`, unless you change `defaultTransition`, which needs `src/lib/interlude/old-page.ts`). Each transition says at the top of its file what else it needs: the WebGL ones `src/lib/interlude/webgl.ts` and three.js, and `stack`, `slide-over`, `peel`, `slices`, `frame`, `carousel`, `cube`, `corner`, `tear` and `channel` `src/lib/interlude/old-page.ts`.
+- The transitions you want, into `src/transitions/`: at least your default one (`peel`, unless you change `defaultTransition`, which needs `src/lib/interlude/old-page.ts`), and the one `revealOnLoad` names, if it names one. Each transition says at the top of its file what else it needs: the WebGL ones `src/lib/interlude/webgl.ts` and three.js, and `stack`, `slide-over`, `peel`, `slices`, `frame`, `carousel`, `cube`, `corner`, `tear` and `channel` `src/lib/interlude/old-page.ts`.
 
 Keep Interlude's licence notice (`LICENSE`, MIT) with the copied files.
 
@@ -94,7 +94,7 @@ If your config already has a `vite` block (for a Tailwind plugin, say), add thes
 
 Every link between your pages now plays the default transition. Pick others per link with `data-transition` (see [Using transitions](#using-transitions)).
 
-**What it costs:** every page loads GSAP (about 28 kB compressed), Astro's router (about 5 kB), the engine (about 4 kB) and the default transition. Each other transition loads when a link that uses it is hovered, focused or touched, and three.js (about 240 kB) only with a WebGL transition. Copying all the transitions costs nothing until one is used.
+**What it costs:** every page loads GSAP (about 28 kB compressed), Astro's router (about 5 kB), the engine (about 4 kB) and the default transition (and with `revealOnLoad`, the one that reveals the first page). Each other transition loads when a link that uses it is hovered, focused or touched, and three.js (about 240 kB) only with a WebGL transition. Copying all the transitions costs nothing until one is used.
 
 ### Your site's scripts
 
@@ -128,7 +128,7 @@ Clone the repository, then remove what only the demo uses:
 - **The transition pages' content:** `src/content/transitions/`, the `transitions` collection in `src/content.config.ts`, and the posters in `src/assets/transitions/`.
 - **The list of transitions:** `src/lib/transitions.ts` and `src/components/TransitionIndex.astro`. The header and the footer (`Header.astro`, `Footer.astro`) use them: replace both with your own.
 - **The Back link's script,** `src/scripts/pages/back-link.ts`, made for the transition pages.
-- **The transitions you don't use,** in `src/transitions/`. Keep the default one (`peel`, unless you change `defaultTransition`).
+- **The transitions you don't use,** in `src/transitions/`. Keep the default one (`peel`, unless you change `defaultTransition`), and the one `revealOnLoad` names, if it names one.
 
 Then put in your own details:
 
@@ -210,7 +210,8 @@ Pick a transition with `data-transition` on a link, or on any ancestor, to set o
 Links without one use `defaultTransition` from `src/interlude.config.ts`.
 
 - **Back and forward** replay the transition each history entry was reached with, with `context.direction` set to `back` going back. Each transition decides what that means: in the demo, `curtain` and `wipe` run the other way, `slide-over`, `peel`, `frame` and `corner` play backwards, `tear` runs up from the bottom, `carousel` slides towards the page it's going to, whichever side it's on, `cube` turns the other way, and `stack` stays the same. It's remembered per entry (in `history.state`), so it stays right when a page is in the history more than once.
-- **The first page load** isn't covered by default. Set `revealOnLoad: true` to cover it and reveal it with the default transition, like a preloader.
+- **The first page load** isn't covered by default. Set `revealOnLoad: true` to cover it and reveal it with the default transition, like a preloader, or give that first reveal settings of its own: `revealOnLoad: { transition: 'curtain', minCoverTime: 1200 }`. `minCoverTime` keeps the first page covered at least that long (ms) from when Interlude starts: for an intro, or a preloader of the site's own, drawn above the layer (as `src/components/Loader.astro` is) and gone on `interlude:enter`. The cover is painted before any script runs, in `--interlude-color`, so the first reveal works best with a transition that starts from a plain cover: `curtain`, `wipe`, `columns`, `circle`, or a WebGL one but `particles` (three.js then loads with the first page). The others need the old page, and fade instead. For a transition whose cover has another colour, paint the first cover to match: the layer is rendered with the name of the transition that will reveal it, so `.interlude[data-state='covered'][data-transition='ink'] { background: var(--red); }` does it (the demo does that for `ink` and `velvet`, in `src/styles/global.css`).
+- **A minimum cover time:** `minCoverTime` keeps the page covered at least that long (ms) on each navigation, counted from the end of `leave`, even if the next page is ready sooner: for a cover that's meant to be seen. At 0, the default, the next page is revealed as soon as it's ready. Where it holds depends on the transition: one whose `leave` covers the page (`curtain`, the WebGL ones) holds its cover; one that keeps the old page still until `enter` (`peel`, `slide-over`, `slices`, `frame`, `corner`) holds the page as it was clicked, and the demo's loader shows, so the wait doesn't look like a click that did nothing.
 - **Reduced motion:** visitors who prefer it get no transition: pages swap without animation. For a short fade instead, add a `fade` transition and set `reducedMotion: 'fade'`. A change of the setting during a visit is picked up too.
 
 Included: five overlays, `curtain`, `wipe`, `circle`, `columns` and `typewriter` (the cover has content of its own: a grid typing the tagline); `stack`, `slide-over`, `peel` (the default), `slices`, `frame`, `carousel`, `cube`, `corner` and `tear`, which move the page itself and show the old page and the new one together; and seven WebGL ones: `dither` (squares, coarse to fine, each filling in with a pattern of dots), `dissolve`, `ink`, `spiral` (a dark spiral from the click, with a red glow along its edge), `velvet` (a red stage curtain drawn across from the right, its folds swaying while the next page loads), `particles` (a scene of its own: particles forming the site's name, which the pointer pushes aside while the page loads) and `channel` (TV static, with the page jumping sideways under it, and static that keeps moving while the next page loads). The demo's home page lists them all, grouped from the simplest kind to the most involved, and every other page ends with the same list.
@@ -260,11 +261,12 @@ The rules:
 - **Draw inside the layer with `panel()`**, which adds a full-screen filled element to `context.root`. Don't style the root itself: the engine owns it, clears it after each transition, and paints it solid while the page is covered.
 - **Return your animation.** GSAP tweens and timelines work as they are, and so does any promise. If a navigation interrupts the reveal (the back button, mid-transition), the engine stops what `enter` returned, clears the layer and starts the next `leave` from wherever things are.
 - **In `enter`, build synchronously**, before the first `await`. The engine clears the solid cover in the same frame.
+- **Set up ahead with `ready()`:** a transition that needs something set up before it can play (a WebGL renderer, say) returns a promise from `ready()` that resolves once it is. `leave` can wait for it itself, but `enter` can't: on the first page with `revealOnLoad`, where `enter` runs without a `leave` before it, the engine waits for `ready()` first (up to `mediaTimeout`). `shaderCover()` sets it for the WebGL transitions.
 - **`context`** has everything else: `content` (the page's `<main>`, old in `leave`, new in `enter`), `from` and `to` URLs, `direction`, `trigger` (the clicked link), `origin` (where the click was, in px), `transition` (the name in use), `reducedMotion`, `initial` (the first page load) and `entrance`.
 - **Helpers** in `src/lib/interlude`: `panel()`, `farthestCorner(x, y)` (the radius that covers the screen from a point) and `sign(context)` (+1 forward, -1 back).
 - **CSS hook:** while a transition runs, the layer carries `data-transition="its-name"` and `data-direction`, so it can have its own styles.
 
-Each transition is its own small chunk, loaded when a link that uses it is hovered, focused or touched, or at the latest when the navigation starts (while the next page is fetched anyway). The default one is loaded up front. So a heavy transition only costs the visitors who trigger it.
+Each transition is its own small chunk, loaded when a link that uses it is hovered, focused or touched, or at the latest when the navigation starts (while the next page is fetched anyway). The default one is loaded up front, and so is the one that reveals the first page with `revealOnLoad`. So a heavy transition only costs the visitors who trigger it.
 
 If a transition throws, the error is logged and the navigation still completes: the page is never left covered.
 
@@ -329,7 +331,7 @@ The demo has nine: `stack` (the old page steps back and a sheet covers it), `sli
 
 ### WebGL transitions
 
-A WebGL transition only describes its shader: how much of each pixel is covered, from 0 (the page shows) to 1 (covered). `shaderCover()`, in `src/lib/interlude/webgl.ts`, does the rest: the canvas in the layer, the animation, interruptions, and a fade where WebGL isn't available.
+A WebGL transition only describes its shader: how much of each pixel is covered, from 0 (the page shows) to 1 (covered). `shaderCover()`, in `src/lib/interlude/webgl.ts`, does the rest: the canvas in the layer, the animation, interruptions, being ready for a first page with `revealOnLoad` (`ready()`), and a fade where WebGL isn't available.
 
 ```ts
 // src/transitions/spot.ts
@@ -352,7 +354,8 @@ export default defineTransition({
 - **Timing:** `shaderCover({ leave: { duration: 1.2 }, enter: { duration: 1.2, ease: 'expo.out' }, shader })`. Each half defaults to 1 second, `'power2.inOut'` covering and `'power2.out'` revealing.
 - **Moving while covered:** frames are drawn only while the cover animates, so a full cover holds still while the next page loads. A shader that moves on its own with `time` sets `live: true` to keep drawing until the reveal (`channel.ts`'s static does).
 - **Helpers:** `below(field, threshold, softness)` draws an edge, crisp and anti-aliased, or soft with `softness`; `reach(origin, aspect)` is the distance to the farthest corner; `cssColor('--color-accent')` reads a colour from the CSS.
-- **Weight:** three.js is about 240 kB compressed. It's bundled with the WebGL transitions only, so it's downloaded when a link that uses one is hovered, focused or touched, never on the first page load.
+- **Your own `leave` and `enter`** around `shaderCover()`'s, to add something under the canvas (`channel.ts` does): keep its `ready` too, `ready: cover.ready`.
+- **Weight:** three.js is about 240 kB compressed. It's bundled with the WebGL transitions only, so it's downloaded when a link that uses one is hovered, focused or touched, not on the first page load (unless a WebGL transition reveals it, with `revealOnLoad`).
 
 For more than a full-screen shader, like particles or meshes, draw a scene of your own with the shared renderer: `await layerRenderer(context)` in `leave` gives it, with its canvas added to the layer and sized to the screen (or `null` without WebGL: fall back to a fade), and `currentRenderer()` gets it back in `enter`. `particles.ts` does that, moving thousands of particles on the GPU. For anything else (textures, a scene that stays on screen), [docs/how-it-works.md](docs/how-it-works.md#8-adding-a-webgl-transition) lists what to take care of.
 
@@ -416,7 +419,7 @@ The engine makes no visual decisions; the demo does, and they're all meant to be
 - **Smooth scrolling** with [Lenis](https://github.com/darkroomengineering/lenis), in `src/scripts/smooth-scroll.ts` (see [Details](#details)).
 - **The content's entrance**: three kinds (move, lines, image), all `expo.out`, 1.2 to 1.8 seconds, 0.03 seconds apart, rising by default (and sinking going back after `curtain`, which runs top to bottom then: the last element leads, the mirror image of rising), and only fading in after `stack`. After `wipe`, `circle`, `typewriter`, the WebGL transitions and those that move the page itself, the page is there as it is once uncovered (their `entrance: false`). All in `src/scripts/pages/entrance.ts`.
 - **`curtain` and `wipe` move the whole page too**: the old page drifts out and the new one in. With `curtain` that's on top of the content's entrance; `wipe` has none, the page arrives as one.
-- **A loader at the cursor** while the next page loads, for `slide-over`, `peel`, `slices`, `frame`, `carousel`, `cube`, `corner` and `tear` only (they wait for the next page before they show it), and only after 300 ms of waiting: `src/components/Loader.astro`, which follows Interlude's events. List other transitions in its `SHOW_FOR`, or remove `<Loader />` from the layout.
+- **A loader at the cursor** while the next page loads, for `slide-over`, `peel`, `slices`, `frame`, `carousel`, `cube`, `corner` and `tear` only (they wait for the next page before they show it), and only after 300 ms of waiting, also when the wait is `minCoverTime` holding the cover (most of these show nothing moving until the reveal): `src/components/Loader.astro`, which follows Interlude's events. List other transitions in its `SHOW_FOR`, or remove `<Loader />` from the layout.
 - **`cube`'s lift**: on the click the page pulls back, still facing you, while the next page loads; then the box turns and comes forward. How far back and the timings are settings at the top of the file.
 - **`peel`'s shadow**: the sheet darkens a little as it turns away, and the page under it is in its shadow, dark where it first shows and lighter as the sheet goes (`DIM` and `UNDER` at the top of the file).
 - **`tear`'s paper**: the tear starts above where you clicked (kept away from the sides), wanders in a few slow waves with a little roughness, and has a paper-coloured torn edge, a little warmer than the page, with fibres here and there and a hairline shadow. The halves pull apart and tilt, each with a soft shadow. They go just far enough for the wider half to leave the screen. Its speed, the halves' tilt and the edge are settings at the top of the file.
@@ -426,7 +429,7 @@ The engine makes no visual decisions; the demo does, and they're all meant to be
 - **`particles`' word**: "Interlude", in light and accent dots on the dark cover. The word, the dots' number and size, the timing and the pointer's push are settings at the top of the file.
 - **`typewriter`'s phrase**: the tagline, in white on a black sheet. The phrase, the speeds and the grid are settings at the top of the file.
 - **Each page's ground**: white on every page for now (`ground` on the layout, or `ground` in a transition's Markdown for its page; `data-ground` on `<body>`). Grey and night grounds are ready: with a page on another ground, a transition goes from one colour to the other.
-- **The colours**: the grounds' (`[data-ground]`), `--interlude-color` (the cover), `--color-accent` (also `dissolve`'s rim) and `--red` (also the colour of `ink`, `frame`, `corner` and `velvet`, and the light of `spiral`), in `src/styles/global.css`. On the home page the names are black, and the others dim while one is pointed at or focused; in the list that ends the other pages, they're dimmed with the current one lit. The dim colour keeps a 3:1 contrast on its ground, the minimum for large text.
+- **The colours**: the grounds' (`[data-ground]`), `--interlude-color` (the cover), `--color-accent` (also `dissolve`'s rim) and `--red` (also the colour of `ink`, `frame`, `corner` and `velvet`, the light of `spiral`, and the first page's cover when `ink` or `velvet` reveals it), in `src/styles/global.css`. On the home page the names are black, and the others dim while one is pointed at or focused; in the list that ends the other pages, they're dimmed with the current one lit. The dim colour keeps a 3:1 contrast on its ground, the minimum for large text.
 
 ## Events
 
@@ -450,12 +453,13 @@ They fire in that order for every navigation, including ones without a transitio
 
 `src/interlude.config.ts`:
 
-| Option              | Default  |                                                                       |
-| ------------------- | -------- | --------------------------------------------------------------------- |
-| `defaultTransition` | `'peel'` | Used by links without `data-transition`.                              |
-| `revealOnLoad`      | `false`  | Cover the first page, then reveal it (like a preloader).              |
-| `reducedMotion`     | `'none'` | With reduced motion: `'none'`, or `'fade'` (add a `fade` transition). |
-| `mediaTimeout`      | `1500`   | Longest wait (ms) for fonts and images before a reveal.               |
+| Option              | Default  |                                                                                                                             |
+| ------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `defaultTransition` | `'peel'` | Used by links without `data-transition`.                                                                                    |
+| `minCoverTime`      | `0`      | Shortest time (ms) the page stays covered on a navigation.                                                                  |
+| `revealOnLoad`      | `false`  | Cover the first page, then reveal it (like a preloader). `true`, or `{ transition, minCoverTime }` for settings of its own. |
+| `reducedMotion`     | `'none'` | With reduced motion: `'none'`, or `'fade'` (add a `fade` transition).                                                       |
+| `mediaTimeout`      | `1500`   | Longest wait (ms) for fonts and images before a reveal, and on the first load for the transition's `ready()`.               |
 
 The transition colour is `--interlude-color` in `src/styles/global.css`.
 

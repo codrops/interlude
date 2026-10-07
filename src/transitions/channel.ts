@@ -107,6 +107,7 @@ export default defineTransition({
   name: 'channel',
   solidCover: false, // the canvas does the covering
   entrance: false, // the page is simply there once the static has gone: its content doesn't come in on its own
+  ready: cover.ready, // the renderer set up, for a first load with `revealOnLoad`
 
   async leave(context) {
     // Without WebGL, `shaderCover()` fades instead: no page to shake under it.

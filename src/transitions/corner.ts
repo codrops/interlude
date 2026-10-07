@@ -85,9 +85,9 @@ export default defineTransition({
 
   enter(context) {
     const old = oldPage(context);
-    // No old page (a first load with `revealOnLoad`): the red just fades.
+    // No old page (a first load with `revealOnLoad`): the dark cover just fades.
     if (!old) {
-      const fade = panel(context, { style: { background: RED } });
+      const fade = panel(context);
       return gsap.fromTo(fade, { opacity: 1 }, { opacity: 0, duration: 0.5, ease: 'power1.out' });
     }
     old.style.clipPath = FULL; // so it can be cut away on the way back

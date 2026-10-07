@@ -8,13 +8,23 @@
  * transition runs.
  */
 import { interlude } from '../interlude.config';
+
+// With `revealOnLoad`, the first page is rendered covered, and the layer names
+// the transition that will reveal it, so CSS can paint the cover to match
+// before any script runs (see "The first page load" in the README).
+const { revealOnLoad, defaultTransition } = interlude;
+const first =
+  typeof revealOnLoad === 'object' && revealOnLoad.transition
+    ? revealOnLoad.transition
+    : defaultTransition;
 ---
 
 <div
   class="interlude"
   data-interlude
-  data-state={interlude.revealOnLoad ? 'covered' : 'idle'}
-  data-cover={interlude.revealOnLoad ? 'solid' : undefined}
+  data-state={revealOnLoad ? 'covered' : 'idle'}
+  data-cover={revealOnLoad ? 'solid' : undefined}
+  data-transition={revealOnLoad ? first : undefined}
   aria-hidden="true"
   transition:persist="interlude"
 ></div>
@@ -34,8 +44,12 @@ import { interlude } from '../interlude.config';
     pointer-events: auto;
   }
 
-  /* Covered: painted solid, unless the transition hides the page its own way (`solidCover: false`). */
-  .interlude[data-state='covered'][data-cover='solid'] {
+  /*
+   * Covered: painted solid, unless the transition hides the page its own way
+   * (`solidCover: false`). In `:where()`, which adds no weight to the selector,
+   * so the site's CSS can paint it another colour.
+   */
+  .interlude:where([data-state='covered'][data-cover='solid']) {
     background: var(--interlude-color);
   }
 

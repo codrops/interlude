@@ -7,8 +7,8 @@
  *     astro:before-swap         ->  clean up the old page
  *     (Astro swaps the page under the cover and sets the scroll position)
  *     astro:after-swap          ->  set the new page's starting state (transition.prepare)
- *     astro:page-load           ->  set up the new page, wait for fonts and images,
- *                                   then reveal it (transition.enter)
+ *     astro:page-load           ->  set up the new page, wait for fonts and images
+ *                                   (and `minCoverTime`), then reveal it (transition.enter)
  *
  * The router's replaceable `loader` is the hook: it's awaited before the swap,
  * so wrapping it lets the cover finish first. The fetch runs alongside it, so a
@@ -49,10 +49,36 @@ function remember(key: keyof Memory, name: string) {
   history.replaceState({ ...history.state, interlude: { ...memory(), [key]: name } }, '');
 }
 
+/** `revealOnLoad`'s settings: the transition the first page is revealed with, and its minimum cover time. */
+const onLoad: { transition?: string; minCoverTime?: number } =
+  typeof config.revealOnLoad === 'object' ? config.revealOnLoad : {};
+const firstLoad = {
+  transition: onLoad.transition ?? config.defaultTransition,
+  minCoverTime: onLoad.minCoverTime ?? 0,
+};
+
 /** Loads a transition, or the default if it can't. `undefined` means none: swap instantly. */
 async function resolve(name: string) {
   if (name === NONE) return undefined;
   return (await loadTransition(name)) ?? (await loadTransition(config.defaultTransition));
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Loads a transition and waits until it's `ready()` to play, but never longer than `timeout` (ms). */
+async function resolveReady(name: string, timeout: number) {
+  const transition = await resolve(name);
+  const ready = Promise.resolve(transition?.ready?.()).catch((error) => {
+    console.error(`[interlude] "${transition?.name}" failed in ready().`, error);
+  });
+  await Promise.race([ready, sleep(timeout)]);
+  return transition;
+}
+
+/** Resolves once `ms` have passed since `since` (a `performance.now()` time): at once if they have. */
+function until(since: number, ms: number) {
+  const left = since + ms - performance.now();
+  return left > 0 ? sleep(left) : Promise.resolve();
 }
 
 /** Stands in for `<main>` if a page has none, so transitions never get null. */
@@ -107,6 +133,8 @@ class Controller {
   #playing: gsap.core.Animation | null = null;
   /** The cover animation, while it plays: navigations that overlap share it. */
   #covering: Promise<void> | null = null;
+  /** When the page was last fully covered (`performance.now()`), for the minimum cover times. */
+  #coveredAt = 0;
   /** Increments with every navigation, so steps of an outdated one can bail out. */
   #run = 0;
   #booted = false;
@@ -150,7 +178,11 @@ class Controller {
       transition: NONE,
       initial: true,
     });
-    if (this.#state === 'covered') this.#lock();
+    if (this.#state === 'covered') {
+      this.#coveredAt = performance.now(); // its minimum cover time counts from here
+      this.#lock();
+      loadTransition(this.#pick(firstLoad.transition)); // the one that will reveal it
+    }
 
     // The transitions most likely to be needed first.
     loadTransition(config.defaultTransition);
@@ -257,7 +289,10 @@ class Controller {
     const transition = this.#transition;
     initPage(content());
     if (!transition) return this.#appear();
-    await mediaReady(content(), { timeout: config.mediaTimeout });
+    await Promise.all([
+      mediaReady(content(), { timeout: config.mediaTimeout }),
+      until(this.#coveredAt, config.minCoverTime),
+    ]);
     if (run === this.#run) await this.#reveal(run, transition);
   };
 
@@ -269,14 +304,18 @@ class Controller {
     initPage(content());
     if (this.#state !== 'covered') return this.#appear();
 
+    // The transition has to be ready to play: here, `enter` runs without a
+    // `leave` before it, which would have waited for it.
     const [transition] = await Promise.all([
-      resolve(this.#pick(config.defaultTransition)),
+      resolveReady(this.#pick(firstLoad.transition), config.mediaTimeout),
       mediaReady(content(), { timeout: config.mediaTimeout }),
     ]);
     if (run !== this.#run) return;
     this.#transition = transition ?? null;
     this.#context.transition = transition?.name ?? NONE;
     if (!transition) return this.#appear();
+    await until(this.#coveredAt, firstLoad.minCoverTime);
+    if (run !== this.#run) return;
     this.#prepare();
     await this.#reveal(run, transition);
   };
@@ -381,6 +420,7 @@ class Controller {
     this.root.dataset.cover = solid ? 'solid' : 'custom';
     this.root.dataset.state = 'covered';
     this.#state = 'covered';
+    this.#coveredAt = performance.now();
     this.#covering = null;
     this.#playing = null;
     this.#emit('covered');

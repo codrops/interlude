@@ -33,6 +33,15 @@
 }
 
 /*
+ * The first page's cover (`revealOnLoad`), painted before any script runs: red
+ * for the transitions whose cover is red, so their reveal starts from it. The
+ * layer names the transition that will reveal it.
+ */
+.interlude[data-state='covered']:is([data-transition='ink'], [data-transition='velvet']) {
+  background: var(--red);
+}
+
+/*
  * Each page's ground: its colours, set on <body> by the layout. Every ground
  * sets every colour: a still copy of the old page keeps its own ground in the
  * transition layer (it carries <body>'s attributes), inside the new page's.

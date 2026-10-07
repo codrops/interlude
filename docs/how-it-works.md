@@ -19,14 +19,14 @@ The rest (choosing a transition, revealing the new page, history, accessibility)
 
 ## The pieces
 
-| Piece                 | Where                                                | What it does                                                                                                               |
-| --------------------- | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| Astro's client router | `<ClientRouter />` in `src/layouts/BaseLayout.astro` | Intercepts links, fetches pages, swaps the DOM, updates history and scroll, fires the `astro:*` events                     |
-| The layer             | `src/components/Interlude.astro`                     | A full-screen element above the page, kept across navigations. Transitions draw inside it                                  |
-| The controller        | `src/lib/interlude/controller.ts`                    | Listens to the router's events and runs each navigation: picks the transition, locks the page, covers it, reveals the next |
-| Transitions           | `src/transitions/*.ts`                               | The animations: `leave` covers, `enter` reveals, `prepare` is optional. Loaded on demand by `registry.ts`                  |
-| Page scripts          | `src/scripts/pages/*.ts`                             | Code for particular pages, registered with `onPage()` (see `lifecycle.ts`)                                                 |
-| Settings              | `src/interlude.config.ts`                            | The default transition, covering the first page load or not, reduced motion, how long to wait for images                   |
+| Piece                 | Where                                                | What it does                                                                                                                             |
+| --------------------- | ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Astro's client router | `<ClientRouter />` in `src/layouts/BaseLayout.astro` | Intercepts links, fetches pages, swaps the DOM, updates history and scroll, fires the `astro:*` events                                   |
+| The layer             | `src/components/Interlude.astro`                     | A full-screen element above the page, kept across navigations. Transitions draw inside it                                                |
+| The controller        | `src/lib/interlude/controller.ts`                    | Listens to the router's events and runs each navigation: picks the transition, locks the page, covers it, reveals the next               |
+| Transitions           | `src/transitions/*.ts`                               | The animations: `leave` covers, `enter` reveals, `prepare` is optional. Loaded on demand by `registry.ts`                                |
+| Page scripts          | `src/scripts/pages/*.ts`                             | Code for particular pages, registered with `onPage()` (see `lifecycle.ts`)                                                               |
+| Settings              | `src/interlude.config.ts`                            | The default transition, a minimum cover time, covering the first page load or not (and how), reduced motion, how long to wait for images |
 
 ## 1. The first page load
 
@@ -36,7 +36,7 @@ Three things in that HTML matter here:
 
 - **`<meta name="astro-view-transitions-enabled">`**, added by `<ClientRouter />`. The router only takes over navigations between pages that have it.
 - **`<html data-page="home">`**, set with the layout's `page` prop. It tells page scripts which page this is.
-- **The layer**, `<div class="interlude" data-interlude data-state="idle">`. With `revealOnLoad: true`, it's rendered with `data-state="covered"` instead, and its CSS paints it solid before any script runs.
+- **The layer**, `<div class="interlude" data-interlude data-state="idle">`. With `revealOnLoad`, it's rendered with `data-state="covered"` instead, and its CSS paints it solid before any script runs. It also carries `data-transition`, the name of the transition that will reveal the page, so the site's CSS can paint the cover to match it.
 
 Then the scripts run. They're JavaScript modules, which run once the HTML is parsed, just before `DOMContentLoaded`:
 
@@ -45,7 +45,8 @@ Then the scripts run. They're JavaScript modules, which run once the HTML is par
 3. **Interlude's script**, in `Interlude.astro`, imports every file in `src/scripts/pages/` (which registers their `onPage()` hooks), then calls `startInterlude()`. That creates the controller, once for the whole visit. The controller:
    - marks the layer `data-ready`, which disarms a CSS failsafe: if scripts never start, a page rendered covered uncovers itself after three seconds;
    - reads `prefers-reduced-motion`;
-   - starts loading the default transition, the one most likely to be needed first;
+   - starts loading the default transition, the one most likely to be needed first, and with `revealOnLoad`, the one that will reveal the first page;
+   - with `revealOnLoad`, notes the time: the first page's minimum cover time counts from here;
    - adds its listeners: the router's events, `pointerdown`, hover and focus, `popstate` and changes to the reduced motion setting.
 4. **The demo's smooth scrolling**, `src/scripts/smooth-scroll.ts`, loaded at the end of the layout, starts Lenis (unless motion is reduced) and listens to Interlude's events to stay in step with the transitions. It isn't part of Interlude: a site without it scrolls natively.
 
@@ -53,7 +54,7 @@ On `DOMContentLoaded`, the controller sets up the first page (`#boot`):
 
 - The page scripts' `init` hooks run, with the page's `<main>`.
 - **Without `revealOnLoad`** (the default), the page is already on screen, so it's shown as it is (`#appear`): `interlude:enter` fires, then the page scripts' `enter` hooks (with `context.initial` set to `true`, `context.transition` to `'none'`, and `context.entrance` to `false`: the content is on screen already, there's nothing to bring in), then `interlude:idle`.
-- **With `revealOnLoad`**, the controller loads the default transition and waits for the fonts and images at the same time. Then it reveals the page the same way as after a navigation (steps 6 and 7 below).
+- **With `revealOnLoad`**, the controller loads the transition that reveals the first page (`revealOnLoad.transition`, or the default one) and waits until it's ready to play: its `ready()`, if it has one (a WebGL transition sets up its renderer, see [section 8](#8-adding-a-webgl-transition)). At the same time, it waits for the fonts and images (as in step 5 below). Each wait lasts `mediaTimeout` at most. Then, if `revealOnLoad.minCoverTime` is set, it waits until the page has been covered that long. And it reveals the page the same way as after a navigation (steps 6 and 7 below). With reduced motion and no `fade` transition, there's nothing to play: the page is shown right away, without the minimum.
 
 Later, once every image has loaded, the browser fires `load` and the router fires its first `astro:page-load`. The controller has already set the page up, so it ignores this one. It doesn't wait for `load` because one slow image would hold back every page script.
 
@@ -133,7 +134,7 @@ The router calls the loader and waits for it. Two things happen in parallel:
   - sets `data-state="leaving"`, `data-transition="circle"` and `data-direction="forward"` on the layer, which makes it visible and lets it catch clicks;
   - runs the page scripts' `leave` hooks;
   - calls `circle.leave(context)`, which adds a panel to the layer with `panel()` and grows it into a circle that covers the screen. The controller keeps the animation it returns, so it can stop it if needed;
-  - when that ends, marks the page covered (`#setCovered`): `data-state="covered"` and `data-cover="solid"`. The layer now paints itself in `--interlude-color`, so the transition's panels aren't needed and are removed. `interlude:covered` fires.
+  - when that ends, marks the page covered (`#setCovered`): `data-state="covered"` and `data-cover="solid"`, and the time, for `minCoverTime`. The layer now paints itself in `--interlude-color`, so the transition's panels aren't needed and are removed. `interlude:covered` fires.
 
 So a navigation takes as long as the cover or the fetch, whichever is longer, rather than both added up. On a slow connection, the page stays covered until the next one arrives.
 
@@ -172,7 +173,8 @@ The router runs the new page's scripts, skipping any that already ran (Interlude
 On `astro:page-load` (`#onPageLoad`), the controller:
 
 - runs the page scripts' `init` hooks for the new page, with its `<main>`: the layer may still hold a copy of the old page ([section 9](#9-keeping-the-old-page-on-screen)), so page scripts look inside `<main>`, not in the whole document;
-- waits until the page is ready to be seen (`mediaReady` in `media.ts`): the fonts, and the images on screen or just below it (within 1.25 screen heights), decoded with `img.decode()` so they appear without a flash. It never waits longer than `mediaTimeout` (1.5 seconds by default), and it doesn't make lazy images further down the page load early.
+- waits until the page is ready to be seen (`mediaReady` in `media.ts`): the fonts, and the images on screen or just below it (within 1.25 screen heights), decoded with `img.decode()` so they appear without a flash. It never waits longer than `mediaTimeout` (1.5 seconds by default), and it doesn't make lazy images further down the page load early;
+- at the same time, if `minCoverTime` is set, waits until the page has been covered that long, counted from the end of `leave` (step 3).
 
 ### Step 6: the reveal
 
@@ -274,7 +276,7 @@ When the effect is one full-screen shader, `shaderCover()` in `src/lib/interlude
 
 **Where it draws.** In `leave`, it adds a `<canvas>` to the layer (`context.root`), and it sets `solidCover: false`. So when the page is covered, the engine doesn't paint the layer over the canvas (see [section 3](#3-the-layers-states)): the canvas stays on screen through the swap, and `enter` reveals the new page with it. When the reveal is over, the engine empties the layer, canvas included, and the next navigation adds it back.
 
-**Setting up once.** The transition's module runs once per visit ([section 7](#7-what-lasts-the-whole-visit-and-what-runs-on-every-page)), so the renderer, the canvas and the compiled shaders can be created at the top of the module and reused by every navigation. The module loads when a link that uses the transition is hovered, focused or touched, so start setting up right away: by the click, it's usually ready. `leave` can `await` it if it isn't. `enter` can't, because it has to start synchronously ([step 6](#step-6-the-reveal)). That's fine after a navigation, since `leave` ran first. On the first page with `revealOnLoad`, though, there's no `leave`: if the WebGL transition is the default one, `enter` needs a fallback for when the renderer isn't ready yet.
+**Setting up once.** The transition's module runs once per visit ([section 7](#7-what-lasts-the-whole-visit-and-what-runs-on-every-page)), so the renderer, the canvas and the compiled shaders can be created at the top of the module and reused by every navigation. The module loads when a link that uses the transition is hovered, focused or touched, so start setting up right away: by the click, it's usually ready. `leave` can `await` it if it isn't. `enter` can't, because it has to start synchronously ([step 6](#step-6-the-reveal)). That's fine after a navigation, since `leave` ran first. On the first page with `revealOnLoad`, though, there's no `leave`: give the transition a `ready()` that resolves once it's set up, and the engine waits for it before that first reveal ([section 1](#1-the-first-page-load)). `shaderCover()` does, with the shader compiled too. The wait lasts `mediaTimeout` at most, so `enter` still needs a fallback for a renderer that isn't ready by then.
 
 **Rendering only while it plays.** Animate a `progress` value with GSAP, render a frame in the tween's `onUpdate`, and return the tween. It ends when the page is covered or revealed, the engine can stop it if a navigation interrupts, and the GPU does nothing the rest of the time. An effect that should keep moving while the next page loads (static, say) renders on every tick from the end of `leave` to the start of `enter`, and stops at `interlude:idle` in case `enter` never comes: `shaderCover()`'s `live` option does that, for `channel.ts`.
 
@@ -314,4 +316,4 @@ Two things follow from the copy being in the layer:
 - **The engine looks for the page's `<main>` outside the layer**, since the copy has one too: `context.content` is always the real page's.
 - **The layer is in front of the page.** To bring the new page over the old one, the transition clips the copy away wherever the new page has arrived (`slide-over.ts`).
 
-Because `leave` runs while the next page is fetched ([step 3](#step-3-cover-and-fetch-at-the-same-time)), the old page can start moving on the click, before the next one has arrived, which Barba's `sync` mode waits for (`stack` does). Or `leave` can leave the copy still, so the page is covered at once by an exact picture of itself, and `enter` plays everything as one movement once the next page is ready (`slide-over` does). The demo then shows a loader at the cursor if the wait is long: `src/components/Loader.astro`, which listens to Interlude's events.
+Because `leave` runs while the next page is fetched ([step 3](#step-3-cover-and-fetch-at-the-same-time)), the old page can start moving on the click, before the next one has arrived, which Barba's `sync` mode waits for (`stack` does). Or `leave` can leave the copy still, so the page is covered at once by an exact picture of itself, and `enter` plays everything as one movement once the next page is ready (`slide-over` does). The demo then shows a loader at the cursor if the wait is long: `src/components/Loader.astro`, which listens to Interlude's events. With `minCoverTime`, such a transition is held right there, at the click, since nothing has moved yet: the loader shows then too, so the wait doesn't look like a click that did nothing.

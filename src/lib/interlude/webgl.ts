@@ -187,7 +187,7 @@ export function shaderCover({
   enter: enterTiming,
   shader,
   live = false,
-}: ShaderCoverOptions): Pick<Transition, 'leave' | 'enter' | 'solidCover'> {
+}: ShaderCoverOptions): Pick<Transition, 'leave' | 'enter' | 'ready' | 'solidCover'> {
   const covering = { duration: 1, ease: 'power2.inOut', ...leaveTiming };
   const revealing = { duration: 1, ease: 'power2.out', ...enterTiming };
   const progress = uniform(0);
@@ -206,7 +206,7 @@ export function shaderCover({
   const quad = new QuadMesh(material);
 
   // Compile the shader while nothing is waiting for it.
-  ready.then((gl) => gl?.compileAsync(quad, quad.camera)).catch(() => {});
+  const compiled = ready.then((gl) => gl?.compileAsync(quad, quad.camera)).catch(() => {});
 
   const draw = () => {
     if (!renderer) return;
@@ -231,6 +231,8 @@ export function shaderCover({
 
   return {
     solidCover: false, // the canvas does the covering
+    // Set up and compiled: on a first load with `revealOnLoad`, the engine waits for it.
+    ready: () => compiled,
 
     async leave(context) {
       const gl = await ready;

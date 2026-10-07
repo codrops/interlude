@@ -73,7 +73,9 @@
     place(detail.origin.x, detail.origin.y);
   });
 
-  // The page is covered and the next one isn't ready yet: show it, if that lasts.
+  // The page is covered and the next one isn't shown yet: show it, if that lasts.
+  // That's also while `minCoverTime` holds the cover: most of these transitions
+  // show nothing moving until the reveal, so the click would seem to do nothing.
   document.addEventListener('interlude:covered', ({ detail }) => {
     if (!SHOW_FOR.includes(detail.transition)) return;
     waiting = true;

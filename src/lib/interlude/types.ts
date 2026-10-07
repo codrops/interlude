@@ -68,6 +68,14 @@ export interface Transition {
    */
   prepare?(context: TransitionContext): void;
   /**
+   * Resolves once the transition can play, for one that sets something up
+   * asynchronously (`shaderCover()`: the WebGL renderer). `leave` can wait for
+   * it itself, but `enter` can't: the engine waits for it, up to
+   * `mediaTimeout`, before revealing the first page with `revealOnLoad`, where
+   * `enter` runs without a `leave` before it.
+   */
+  ready?(): PromiseLike<unknown>;
+  /**
    * By default the layer is painted solid while the page is covered, and
    * `enter` starts from that. Set to `false` when the transition hides the
    * page some other way (by moving the content itself, with its own canvas…):

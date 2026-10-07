@@ -56,8 +56,9 @@ export default defineTransition({
   },
 
   enter(context) {
-    // Only the sheet is left to see: the card is under it, and goes now.
-    const sheet = context.root.lastElementChild as HTMLElement;
+    // Only the sheet is left to see: the card is under it, and goes now. On a
+    // first load with `revealOnLoad` there's no sheet: the cover fades instead.
+    const sheet = (context.root.lastElementChild as HTMLElement | null) ?? panel(context);
     [...context.root.children].forEach((el) => el !== sheet && el.remove());
     // The sheet fades, and the page's entrance brings the content in (see `entrance`).
     return gsap.to(sheet, { opacity: 0, ...ENTER });
