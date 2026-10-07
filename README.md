@@ -1,10 +1,10 @@
 # Interlude
 
-<img width="2400" height="1800" alt="image" src="https://github.com/user-attachments/assets/a8222d7a-c0ad-4f2b-86a3-2a8f27c4864e" />
-
 **[Demo](https://interlude.crnacura.workers.dev/) · [Article](https://tympanus.net/codrops/?p=123511)**
 
 A starter for custom page transitions in Astro, built on Astro's own client router: a small engine that plugs into `<ClientRouter />` and runs your own cover-and-reveal transitions, each in its own file in `src/transitions/`. It's a starter, not a library: there's no package to install. Copy the engine into your Astro site, keep the transitions you want, and write your own.
+
+<img width="2400" height="1800" alt="image" src="https://github.com/user-attachments/assets/a8222d7a-c0ad-4f2b-86a3-2a8f27c4864e" />
 
 The demo is a small site about Interlude itself. Its home page is the list of transitions, set as one sentence: each name plays its transition on the way to its own page. Every page is white; a page can have another ground (grey and night are ready), so a transition can go from one colour to another.
 
