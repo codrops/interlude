@@ -76,6 +76,16 @@ export interface Transition {
    */
   ready?(): PromiseLike<unknown>;
   /**
+   * The cover of a first page load (`revealOnLoad`), drawn while the page waits
+   * to be revealed: what `leave` ends with, built synchronously in
+   * `context.root`. Write it as a function that `leave` also calls, so the two
+   * can't drift apart. `enter` then finds what `cover` built in `context.root`
+   * (and removes it, or reuses it). It only draws: the page's content is for
+   * `prepare` and `enter` to move. Without it, the first page's cover is the
+   * layer's own colour, as for any transition.
+   */
+  cover?(context: TransitionContext): void;
+  /**
    * By default the layer is painted solid while the page is covered, and
    * `enter` starts from that. Set to `false` when the transition hides the
    * page some other way (by moving the content itself, with its own canvas…):

@@ -65,14 +65,12 @@ async function resolve(name: string) {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Loads a transition and waits until it's `ready()` to play, but never longer than `timeout` (ms). */
-async function resolveReady(name: string, timeout: number) {
-  const transition = await resolve(name);
-  const ready = Promise.resolve(transition?.ready?.()).catch((error) => {
-    console.error(`[interlude] "${transition?.name}" failed in ready().`, error);
+/** Waits until the transition is `ready()` to play, but never longer than `timeout` (ms). */
+function waitReady(transition: Transition, timeout: number) {
+  const ready = Promise.resolve(transition.ready?.()).catch((error) => {
+    console.error(`[interlude] "${transition.name}" failed in ready().`, error);
   });
-  await Promise.race([ready, sleep(timeout)]);
-  return transition;
+  return Promise.race([ready, sleep(timeout)]);
 }
 
 /** Resolves once `ms` have passed since `since` (a `performance.now()` time): at once if they have. */
@@ -304,21 +302,40 @@ class Controller {
     initPage(content());
     if (this.#state !== 'covered') return this.#appear();
 
-    // The transition has to be ready to play: here, `enter` runs without a
-    // `leave` before it, which would have waited for it.
-    const [transition] = await Promise.all([
-      resolveReady(this.#pick(firstLoad.transition), config.mediaTimeout),
-      mediaReady(content(), { timeout: config.mediaTimeout }),
-    ]);
+    const transition = await resolve(this.#pick(firstLoad.transition));
     if (run !== this.#run) return;
     this.#transition = transition ?? null;
     this.#context.transition = transition?.name ?? NONE;
+    // The transition's own cover, drawn now, so the wait shows it.
+    if (transition?.cover) this.#drawFirstCover(transition);
+
+    // The transition has to be ready to play: here, `enter` runs without a
+    // `leave` before it, which would have waited for it.
+    await Promise.all([
+      transition ? waitReady(transition, config.mediaTimeout) : undefined,
+      mediaReady(content(), { timeout: config.mediaTimeout }),
+    ]);
+    if (run !== this.#run) return;
     if (!transition) return this.#appear();
     await until(this.#coveredAt, firstLoad.minCoverTime);
     if (run !== this.#run) return;
     this.#prepare();
     await this.#reveal(run, transition);
   };
+
+  /**
+   * The first page's cover, from the transition's `cover()`: what its `leave`
+   * ends with, built in the layer. The layer's own colour is only under it for
+   * a solid transition, and off for one that hides the page another way.
+   */
+  #drawFirstCover(transition: Transition) {
+    try {
+      transition.cover?.(this.#context);
+    } catch (error) {
+      console.error(`[interlude] "${transition.name}" failed in cover().`, error);
+    }
+    this.root.dataset.cover = transition.solidCover === false ? 'custom' : 'solid';
+  }
 
   /** What a navigation asks for: its link's transition, or the one history remembers. */
   #request(event: TransitionBeforePreparationEvent) {
