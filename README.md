@@ -2,7 +2,7 @@
 
 <!-- Placeholders: replace # with the live demo's address and the article's once they exist. -->
 
-**[Demo](#) · [Article](#)**
+**[Demo](https://interlude.crnacura.workers.dev/) · [Article](https://tympanus.net/codrops/?p=123511)**
 
 A starter for custom page transitions in Astro, built on Astro's own client router: a small engine that plugs into `<ClientRouter />` and runs your own cover-and-reveal transitions, each in its own file in `src/transitions/`. It's a starter, not a library: there's no package to install. Copy the engine into your Astro site, keep the transitions you want, and write your own.
 
