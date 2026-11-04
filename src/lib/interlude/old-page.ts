@@ -173,8 +173,16 @@ export function copyPage(context: TransitionContext) {
     document.addEventListener('astro:after-swap', restore, { once: true });
   }
   copy.inert = true; // nothing in it can be clicked, focused or read out
-  // Moved up by the scroll position, so it lines up with the page underneath.
-  Object.assign(copy.style, { position: 'absolute', inset: `${-window.scrollY}px 0 auto` });
+  Object.assign(copy.style, {
+    position: 'absolute',
+    // Moved up by the scroll position, so it lines up with the page underneath.
+    inset: `${-window.scrollY}px auto auto 0`,
+    // As wide as the page is now. With scrollbars that take up room (Windows,
+    // or macOS set to always show them), a next page that's longer or shorter
+    // brings one in or takes it away at the swap: the screen gets narrower or
+    // wider, and a copy as wide as the layer would reflow and shift sideways.
+    width: `${document.documentElement.clientWidth}px`,
+  });
   return copy;
 }
 

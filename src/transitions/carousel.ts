@@ -35,7 +35,9 @@ interface Page {
 interface Scene {
   strip: HTMLElement;
   pages: Page[];
-  camera: { scale: number; x: number }; // x: the point of the strip in the middle of the screen
+  // x: the point of the strip in the middle of the screen; middle: where that
+  // is, half the screen's width (which a scrollbar coming or going can change)
+  camera: { scale: number; x: number; middle: number };
   show: () => void; // puts the camera where `camera` says
   width: number;
   height: number;
@@ -128,14 +130,14 @@ export default defineTransition({
     const current = {
       strip,
       pages,
-      camera: { scale: 1, x: here * spacing + width / 2 },
+      camera: { scale: 1, x: here * spacing + width / 2, middle: width / 2 },
       width,
       height,
       spacing,
       show() {
         // Scaled from the strip's corner, then moved so `x` is in the middle of the screen.
-        const { scale, x } = this.camera;
-        strip.style.transform = `translate(${width / 2 - scale * x}px, ${(height / 2) * (1 - scale)}px) scale(${scale})`;
+        const { scale, x, middle } = this.camera;
+        strip.style.transform = `translate(${middle - scale * x}px, ${(height / 2) * (1 - scale)}px) scale(${scale})`;
       },
     } satisfies Scene;
 
@@ -166,15 +168,20 @@ export default defineTransition({
     }
     scene = undefined;
 
-    const { strip, pages, camera, width, spacing } = current;
+    const { strip, pages, camera, spacing } = current;
     const target = pages.findIndex((page) => page.path === context.to.pathname);
+    // The screen as it is now. With scrollbars that take up room, a scrollbar
+    // can come or go at the swap, and the screen be narrower or wider than in
+    // `leave`: the next page's card takes the new width, and the camera ends
+    // in the new middle, so the card fills the screen exactly.
+    const { clientWidth: width } = context.root;
 
     // The next page's card: a still copy of it, over its name card.
     const card = document.createElement('div');
     card.style.overflow = 'hidden';
     card.style.background = pageColor();
     card.append(copyPage(context));
-    place(card, target, current);
+    place(card, target, { ...current, width });
     strip.append(card);
 
     const distance = Math.abs(
@@ -190,6 +197,7 @@ export default defineTransition({
           camera,
           {
             x: target * spacing + width / 2,
+            middle: width / 2, // if a scrollbar came or went: moved over the slide, not at once
             duration: slide,
             ease: SLIDE.ease,
             onUpdate: () => current.show(),
@@ -204,7 +212,7 @@ export default defineTransition({
         )
         // Exactly in place, so the real page underneath matches.
         .add(() => {
-          Object.assign(camera, { scale: 1, x: target * spacing + width / 2 });
+          Object.assign(camera, { scale: 1, x: target * spacing + width / 2, middle: width / 2 });
           current.show();
         })
     );
